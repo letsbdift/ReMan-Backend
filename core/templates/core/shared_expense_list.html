@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Shared Expenses | RE Manager{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom flex-wrap gap-2">
+    <div>
+        <h2 class="mb-0 fw-bold text-dark">Shared Expenses</h2>
+        <p class="text-muted mb-0">Track and settle balances across all your expense groups</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <form method="GET" class="d-flex m-0">
+            <select name="project_id" class="form-select border-primary text-primary fw-bold" style="min-width: 200px; border-radius: 20px;" onchange="this.form.submit()">
+                <option value="all">Global Overview (All Projects)</option>
+                {% for p in all_projects %}
+                <option value="{{ p.pk }}" {% if selected_project_id|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.project_name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <button onclick="exportTableToCSV('export.csv')" class="btn btn-outline-secondary rounded-pill px-3"><i class="bi bi-download"></i> Export</button>
+        <a href="{% url 'sharedexpense_create' %}?project_id={{ selected_project_id }}" class="btn btn-sw-orange fw-bold shadow-sm px-4 py-2 rounded-pill">
+            <i class="bi bi-plus-lg"></i> Add an Expense
+        </a>
+    </div>
+</div>
+
+    <!-- Global Balances Banner -->
+    <div class="card bg-sw-green text-white mb-4 border-0 shadow-sm" style="border-radius: 12px; background-color: var(--sw-green);">
+        <div class="card-body p-4 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="fw-bold mb-1"><i class="bi bi-wallet2 me-2"></i> Global Balances</h5>
+                <p class="mb-0 opacity-75">Overview of who owes whom across all groups.</p>
+            </div>
+            <a href="{% url 'settlement_create' %}" class="btn btn-light fw-bold text-sw-green px-4">
+                Settle up
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Global Debts -->
+        <div class="col-md-5 mb-4">
+            <h6 class="text-muted fw-bold mb-3" style="letter-spacing: 0.5px;">TOTAL OUTSTANDING</h6>
+            <div class="card border-0 shadow-sm" style="border-radius: 8px;">
+                <div class="list-group list-group-flush">
+                    {% for debt in debts %}
+                    <div class="list-group-item p-4 border-bottom-0 border-top d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar bg-secondary me-3"><i class="bi bi-person-fill"></i></div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">{{ debt.from.name }}</h6>
+                                <small class="text-muted">owes {{ debt.to.name }}</small>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <h5 class="mb-0 fw-bold text-sw-orange">₹{{ debt.amount }}</h5>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="p-5 text-muted text-center bg-light">
+                        <i class="bi bi-check-circle text-sw-green mb-3 d-block" style="font-size: 2rem;"></i>
+                        <h6 class="fw-bold">All settled up!</h6>
+                        No outstanding balances globally.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+                <!-- Center Column: Groups -->
+        <div class="col-md-7 mb-4">
+            <h6 class="text-muted fw-bold mb-3" style="letter-spacing: 0.5px;">YOUR EXPENSE TITLES (GROUPS)</h6>
+            <div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">
+    <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+            <tr>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Expense Title</th>
+                <th scope="col">Project</th>
+                <th scope="col">Participants</th>
+                <th scope="col" class="text-center sticky-right" style="background: #f8f9fa; right: 0; z-index: 3;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in purposes %}
+            <tr class="clickable-row bg-white" style="cursor: pointer;" onclick="window.location.href='{% url 'shared_purpose_detail' p.pk %}'">
+                <td class="sticky-left fw-bold text-primary bg-white" style="left: 0;">{{ p.name }}</td>
+                <td>{{ p.project.project_name|default:"-" }}</td>
+                <td>
+                    <div class="text-truncate" style="max-width: 200px;" title="{% for pt in p.participants.all %}{{ pt.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+                        {% for pt in p.participants.all %}{{ pt.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                    </div>
+                </td>
+                
+                <td class="d-none record-details">
+                    <div data-label="Project">{{ p.project.project_name|default:"-" }}</div>
+                    <div data-label="Expense Title">{{ p.name }}</div>
+                    <div data-label="Notes">{{ p.notes|default:"-" }}</div>
+                    <div data-label="Participants">{% for pt in p.participants.all %}{{ pt.name }}{% if not forloop.last %} &bull; {% endif %}{% endfor %}</div>
+                </td>
+                
+                <td class="text-center sticky-right bg-white" style="right: 0;">
+                    <a href="{% url 'shared_purpose_detail' p.pk %}" class="btn btn-sm btn-light text-info border" onclick="event.stopPropagation();"><i class="bi bi-eye"></i></a>
+                    <a href="{% url 'purpose_update' p.pk %}" class="btn btn-sm btn-light text-primary border ms-1" onclick="event.stopPropagation();"><i class="bi bi-pencil-square"></i></a>
+                    <a href="{% url 'purpose_delete' p.pk %}" class="btn btn-sm btn-light text-danger border ms-1" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center p-5 text-muted">No shared expense groups found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}

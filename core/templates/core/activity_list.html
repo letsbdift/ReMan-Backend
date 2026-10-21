@@ -1,0 +1,32 @@
+﻿{% extends 'base.html' %}
+{% block title %}Audit Trail | RE Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-4 border-bottom flex-wrap gap-2">
+    <h1 class="h2 mb-0">System Activity Log</h1>
+    <button onclick="exportTableToCSV('audit_log.csv')" class="btn btn-outline-secondary rounded-pill px-3"><i class="bi bi-download"></i> Export CSV</button>
+</div>
+<div class="table-responsive bg-white rounded shadow-sm" style="max-height: 75vh; overflow: auto;">
+    <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+            <tr>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Date & Time</th>
+                <th scope="col">Type</th>
+                <th scope="col">Related To</th>
+                <th scope="col">Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for act in activities %}
+            <tr class="bg-white">
+                <td class="sticky-left fw-bold bg-white" style="left: 0;">{{ act.date|date:"Y-m-d H:i" }}</td>
+                <td><span class="badge bg-secondary">{{ act.activity_type }}</span></td>
+                <td>{{ act.related_to|default:"-" }}</td>
+                <td><div class="text-truncate" style="max-width: 400px;" title="{{ act.note }}">{{ act.note }}</div></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center p-5 text-muted">No activities found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

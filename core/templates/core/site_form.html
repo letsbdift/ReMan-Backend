@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}{{ object|yesno:"Update,Add" }} Site | RE Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-4 border-bottom flex-wrap gap-2">
+    <h1 class="h2 mb-0">{{ object|yesno:"Update,Add" }} Site</h1>
+    <a href="{% url 'site_list' %}" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-arrow-left"></i> Back to List</a>
+</div>
+
+{% if object and object.status == 'Booked' %}
+<div class="card mb-4 border-warning shadow-sm">
+    <div class="card-header bg-warning text-dark fw-bold">
+        <i class="bi bi-bookmark-star"></i> Site Booking Status
+    </div>
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center mb-3 mb-md-0 border-end">
+                <span class="text-muted d-block small">Total Site Value</span>
+                <span class="fs-4 fw-bold text-dark">₹{{ object.price|default:"0.00" }}</span>
+            </div>
+            <div class="col-md-3 text-center mb-3 mb-md-0 border-end">
+                <span class="text-muted d-block small">Unearned Revenue (Received)</span>
+                <span class="fs-4 fw-bold text-primary">₹{{ object.amount_received|default:"0.00" }}</span>
+            </div>
+            <div class="col-md-3 text-center mb-3 mb-md-0 border-end">
+                <span class="text-muted d-block small">Remaining Balance</span>
+                <span class="fs-4 fw-bold text-danger">₹{{ object.balance|default:"0.00" }}</span>
+            </div>
+            <div class="col-md-3 text-center">
+                <a href="{% url 'transaction_list' %}?search={{ object.site_number }}" class="btn btn-success w-100 rounded-pill"><i class="bi bi-cash-stack"></i> Process Next Transaction</a>
+            </div>
+        </div>
+        <!-- Progress Bar -->
+        <div class="progress mt-4" style="height: 10px;">
+            <div class="progress-bar bg-success" role="progressbar" style="width: {% widthratio object.amount_received object.price 100 %}%;" aria-valuenow="{{ object.amount_received }}" aria-valuemin="0" aria-valuemax="{{ object.price|default:'1' }}"></div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% for field in form %}
+                {% if field.is_hidden %}
+                    {{ field }}
+                {% else %}
+                <div class="mb-3" id="div_id_{{ field.name }}">
+                    <label for="{{ field.id_for_label }}" class="form-label fw-bold">{{ field.label }}{% if field.field.required %} <span class="text-danger fw-bold">*</span>{% endif %}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                    <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% for error in field.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endfor %}
+            <div class="mt-4 text-end">
+                <a href="{% url 'site_list' %}" class="btn btn-light rounded-pill px-4 me-2">Cancel</a>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Save Site</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

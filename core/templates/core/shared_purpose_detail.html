@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}{{ group.name }} | RE Manager{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+        <div>
+            <a href="{% url 'shared_expense_list' %}" class="text-muted text-decoration-none small"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
+            <h2 class="mb-0 fw-bold mt-2 text-dark">{{ group.name }}</h2>
+            <p class="text-muted mb-0">Participants: {% for p in group.participants.all %}{{ p.name }}{% if not forloop.last %} &bull; {% endif %}{% endfor %}</p>
+        </div>
+        <a href="{% url 'sharedexpense_create' %}?purpose={{ group.id }}" class="btn btn-sw-orange fw-bold shadow-sm">Add Expense Here</a>
+    </div>
+
+    <div class="row">
+        <!-- Expenses Table -->
+        <div class="col-md-7 mb-4">
+            <h5 class="fw-bold mb-3">Expenses</h5>
+            <div class="table-responsive bg-white rounded shadow-sm mb-4" style="max-height: 50vh; overflow: auto;">
+    <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+            <tr>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Date</th>
+                <th scope="col">Description</th>
+                <th scope="col">Paid By</th>
+                <th scope="col" class="text-end">Amount</th>
+                <th scope="col" class="text-center sticky-right" style="background: #f8f9fa; right: 0; z-index: 3;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exp in purpose.expenses.all %}
+            <tr class="clickable-row bg-white" style="cursor: pointer;">
+                <td class="sticky-left fw-bold bg-white" style="left: 0;">{{ exp.date|date:"d M Y" }}</td>
+                <td><div class="text-truncate" style="max-width: 150px;" title="{{ exp.description }}">{{ exp.description }}</div></td>
+                <td><span class="badge bg-secondary">{{ exp.paid_by.name }}</span></td>
+                <td class="text-end text-danger fw-bold">₹{{ exp.total_amount }}</td>
+                
+                <td class="d-none record-details">
+                    <div data-label="Date">{{ exp.date|date:"Y-m-d" }}</div>
+                    <div data-label="Description">{{ exp.description }}</div>
+                    <div data-label="Category">{{ exp.category|default:"-" }}</div>
+                    <div data-label="Total Amount">₹{{ exp.total_amount }}</div>
+                    <div data-label="Paid By">{{ exp.paid_by.name }}</div>
+                    <div data-label="Split Method">{{ exp.split_method }}</div>
+                    <div data-label="Notes">{{ exp.notes|default:"-" }}</div>
+                    <div data-label="Receipt">{% if exp.receipt %}<a href="{{ exp.receipt.url }}" target="_blank"><i class="bi bi-file-earmark-text"></i> View</a>{% else %}-{% endif %}</div>
+                </td>
+                
+                <td class="text-center sticky-right bg-white" style="right: 0;">
+                    <div class="card-footer d-none">
+                        <a href="{% url 'shared_expense_update' exp.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-pencil-square me-1"></i> Edit</a>
+                        <a href="{% url 'shared_expense_delete' exp.pk %}" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-trash me-1"></i> Delete</a>
+                    </div>
+                    <a href="{% url 'shared_expense_update' exp.pk %}" class="btn btn-sm btn-light text-primary border" onclick="event.stopPropagation();"><i class="bi bi-pencil-square"></i></a>
+                    <a href="{% url 'shared_expense_delete' exp.pk %}" class="btn btn-sm btn-light text-danger border ms-1" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center p-4 text-muted">No expenses recorded yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+    </div>
+</div>
+
+        <!-- Summary -->
+        <div class="col-md-5">
+            <h5 class="fw-bold mb-3">Summary</h5>
+            <div class="card shadow-sm border-0 mb-4" style="border-radius: 8px;">
+                <div class="card-header bg-white border-bottom p-4">
+                    <h6 class="text-muted mb-1">Total Expenses</h6>
+                    <h3 class="fw-bold mb-0">₹{{ total_expenses }}</h3>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for item in summary %}
+                    <div class="list-group-item p-4">
+                        <h5 class="fw-bold mb-3">{{ item.participant.name }}</h5>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Paid:</span>
+                            <span class="fw-bold">₹{{ item.paid }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3 border-bottom pb-3">
+                            <span class="text-muted">Share:</span>
+                            <span class="fw-bold">₹{{ item.share }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            {% if item.status == 'Receivable' %}
+                                <span class="text-sw-green fw-bold">Receivable:</span>
+                                <span class="text-sw-green fw-bold fs-5">₹{{ item.balance }}</span>
+                            {% elif item.status == 'Owes' %}
+                                <span class="text-sw-orange fw-bold">Owes:</span>
+                                <span class="text-sw-orange fw-bold fs-5">₹{{ item.balance }}</span>
+                            {% else %}
+                                <span class="text-muted fw-bold">Settled</span>
+                                <span class="text-muted fw-bold fs-5">₹0</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

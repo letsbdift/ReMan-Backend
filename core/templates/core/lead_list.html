@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Leads | RE Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2">Leads</h1>
+    <a href="{% url "lead_create" %}" class="btn btn-primary">Add Lead</a>
+</div>
+<div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">
+    <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+            <tr>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Lead</th>
+                <th scope="col">Status</th>
+                <th scope="col">Interest</th>
+                <th scope="col">Next Follow-up</th>
+                <th scope="col" class="text-center sticky-right" style="background: #f8f9fa; right: 0; z-index: 3;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in leads %}
+            <tr class="clickable-row bg-white" style="cursor: pointer;">
+                <td class="sticky-left bg-white" style="left: 0;">
+                    <div class="fw-bold text-primary">{{ l.name }}</div>
+                    <div class="small text-muted"><i class="bi bi-telephone-fill"></i> {{ l.phone|default:"-" }}</div>
+                </td>
+                <td><span class="badge bg-warning text-dark">{{ l.status }}</span></td>
+                <td><div class="text-truncate" style="max-width: 150px;" title="{{ l.interested_property|default:'' }}">{{ l.interested_property|default:"-" }}</div></td>
+                <td>{{ l.next_follow_up|date:"M d, Y H:i"|default:"-" }}</td>
+                
+                <td class="d-none record-details">
+                    <div data-label="Name">{{ l.name|default:"-" }}</div>
+                    <div data-label="Project">{{ l.project.project_name|default:"-" }}</div>
+                    <div data-label="Phone">{{ l.phone|default:"-" }}</div>
+                    <div data-label="Lead Type">{{ l.lead_type|default:"-" }}</div>
+                    <div data-label="Location">{{ l.location|default:"-" }}</div>
+                    <div data-label="Source">{{ l.source|default:"-" }}</div>
+                    <div data-label="Interested Property">{{ l.interested_property|default:"-" }}</div>
+                    <div data-label="Status"><span class="badge bg-warning text-dark">{{ l.status }}</span></div>
+                    <div data-label="Next Follow-up">{{ l.next_follow_up|date:"M d, Y H:i"|default:"-" }}</div>
+                    <div data-label="Notes">{{ l.notes|default:"-" }}</div>
+                </td>
+                
+                <td class="text-center sticky-right bg-white" style="right: 0;">
+                    <div class="card-footer d-none">
+                        <a href="{% url 'lead_update' l.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-pencil-square me-1"></i> Edit</a>
+                        <a href="{% url 'lead_delete' l.pk %}" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-trash me-1"></i> Delete</a>
+                    </div>
+                    <a href="{% url 'lead_update' l.pk %}" class="btn btn-sm btn-light text-primary border" onclick="event.stopPropagation();"><i class="bi bi-pencil-square"></i></a>
+                    <a href="{% url 'lead_delete' l.pk %}" class="btn btn-sm btn-light text-danger border ms-1" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center p-5 text-muted">No leads found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

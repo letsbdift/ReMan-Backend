@@ -1,0 +1,421 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard | RE Manager{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h2 class="fw-bold mb-0">Dashboard</h2>
+    </div>
+    <div class="col-auto">
+        <form method="GET" class="d-flex">
+            <select name="project_id" class="form-select me-2" onchange="this.form.submit()">
+                <option value="all">All Projects</option>
+                {% for p in all_projects %}
+                <option value="{{ p.id }}" {% if selected_project.id == p.id %}selected{% endif %}>{{ p.project_name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100 bg-light border-start border-primary border-4">
+            <div class="card-body">
+                <p class="text-dark mb-1 text-uppercase fw-bold" style="font-size: 0.8rem;">Total Revenue</p>
+                <h4 class="mb-0 fw-bold text-dark">₹{{ total_revenue|floatformat:2 }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100 bg-light border-start border-danger border-4">
+            <div class="card-body">
+                <p class="text-dark mb-1 text-uppercase fw-bold" style="font-size: 0.8rem;">Total Paid</p>
+                <h4 class="mb-0 fw-bold text-dark">₹{{ total_paid|floatformat:2 }}</h4>
+                <small class="text-dark">Pending Payables: ₹{{ pending_payables|floatformat:2 }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100 bg-light border-start border-warning border-4">
+            <div class="card-body">
+                <p class="text-dark mb-1 text-uppercase fw-bold" style="font-size: 0.8rem;">Net Profit</p>
+                <h4 class="mb-0 fw-bold text-dark">
+                    {% if net_profit < 0 %}-₹{{ net_profit|stringformat:"f"|slice:"1:"|floatformat:2 }}{% else %}₹{{ net_profit|floatformat:2 }}{% endif %}
+                </h4>
+                <small class="text-dark">Revenue - Investments - Expenses</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100 bg-light border-start border-info border-4">
+            <div class="card-body">
+                <p class="text-dark mb-1 text-uppercase fw-bold" style="font-size: 0.8rem;">Total Expenses (All)</p>
+                <h4 class="mb-0 fw-bold text-dark">₹{{ total_expenses_all|floatformat:2 }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-lg-3">
+        <div class="card shadow-sm border-0 h-100 bg-light border-start border-primary border-4">
+            <div class="card-body">
+                <p class="text-muted mb-1 text-uppercase fw-bold" style="font-size: 0.8rem;">Active Pipeline Value</p>
+                <h4 class="mb-0 fw-bold text-primary">₹{{ pipeline_value|floatformat:2 }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card shadow-sm border-0 h-100 bg-light border-start border-success border-4">
+            <div class="card-body">
+                <p class="text-muted mb-1 text-uppercase fw-bold" style="font-size: 0.8rem;">Lead Conversion</p>
+                <h4 class="mb-0 fw-bold text-success">{{ conversion_rate }}%</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Partner Financial Analytics -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-secondary text-white py-3">
+        <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Partner Financial Analytics</h5>
+    </div>
+    <div class="card-body p-4">
+        <div class="row text-center mb-4 border-bottom pb-4">
+            <div class="col-md-6 border-end">
+                <h6 class="text-muted fw-bold text-uppercase">Total Partnership Investment</h6>
+                <h3 class="text-primary mb-0">₹{{ total_partnership_investment|floatformat:2|default:"0.00" }}</h3>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-muted fw-bold text-uppercase">Expected Contribution (Per Partner)</h6>
+                <h3 class="text-secondary mb-0">₹{{ expected_contribution|floatformat:2|default:"0.00" }}</h3>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4 align-items-center justify-content-center">
+            <div class="col-md-4 text-center">
+                <h6 class="text-muted fw-bold mb-3">Partner Investments</h6>
+                <div style="position: relative; height: 250px; width: 100%; display: flex; justify-content: center;">
+                    <canvas id="investChart"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <h6 class="text-muted fw-bold mb-3">Partner Receipts</h6>
+                <div style="position: relative; height: 250px; width: 100%; display: flex; justify-content: center;">
+                    <canvas id="receiptChart"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <h6 class="text-muted fw-bold mb-3">Partner Profit Share</h6>
+                <div style="position: relative; height: 250px; width: 100%; display: flex; justify-content: center;">
+                    <canvas id="profitChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <h5 class="fw-bold mb-3 border-bottom pb-2 mt-5">Settlement Summary</h5>
+        {% if settlements %}
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered table-striped text-center">
+                <thead class="table-dark">
+                    <tr><th>From (Owes)</th><th>To (Should Receive)</th><th>Amount to Transfer</th></tr>
+                </thead>
+                <tbody>
+                    {% for s in settlements %}
+                    <tr>
+                        <td class="text-danger fw-bold">{{ s.from }}</td>
+                        <td class="text-success fw-bold">{{ s.to }}</td>
+                        <td class="fw-bold">₹{{ s.amount|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-4">All partners are perfectly settled.</p>
+        {% endif %}
+
+        <h5 class="fw-bold mb-3 border-bottom pb-2">Expenses by Category</h5>
+        <div class="row g-3 mb-4">
+            {% for cat in category_totals %}
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-secondary">{{ cat.category__name }}</span>
+                        <span class="fs-5 fw-bold">₹{{ cat.total|floatformat:2 }}</span>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12"><p class="text-muted">No expenses recorded yet.</p></div>
+            {% endfor %}
+        </div>
+
+        <h5 class="fw-bold mb-3 border-bottom pb-2">Partner Details</h5>
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle text-center">
+                <thead class="table-light">
+                    <tr>
+                        <th>Partner</th>
+                        <th>Invested</th>
+                        <th>Received</th>
+                        <th>Expected</th>
+                        <th>Balance</th>
+                        <th>Profit Share</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stats in partner_stats %}
+                    <tr>
+                        <td class="fw-bold">{{ stats.name }}</td>
+                        <td class="text-secondary">₹{{ stats.invested|floatformat:2 }}</td>
+                        <td class="text-secondary">₹{{ stats.received|floatformat:2 }}</td>
+                        <td class="text-secondary">₹{{ stats.expected|floatformat:2 }}</td>
+                        <td class="fw-bold {% if stats.balance < 0 %}text-danger{% elif stats.balance > 0 %}text-success{% endif %}">
+                            {% if stats.balance > 0 %}+{% endif %}₹{{ stats.balance|floatformat:2 }}
+                        </td>
+                        <td class="text-secondary fw-bold">
+                            {% if stats.profit_share > 0 %}₹{{ stats.profit_share|floatformat:2 }}{% else %}<span class="text-muted small">No Distributable Profits</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if stats.balance < -0.01 %}
+                            <span class="badge bg-danger rounded-pill px-3 py-2">Owes ₹{{ stats.balance|floatformat:2|slice:"1:" }}</span>
+                            {% elif stats.balance > 0.01 %}
+                            <span class="badge bg-success rounded-pill px-3 py-2">Should Receive ₹{{ stats.balance|floatformat:2 }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary rounded-pill px-3 py-2">Settled</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold">Site Inventory Availability</h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 250px;">
+                    <canvas id="siteInventoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold">Project Progress Milestones</h5>
+            </div>
+            <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                <ul class="list-group list-group-flush">
+                    {% for p in project_progress %}
+                    <li class="list-group-item py-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="fw-bold">{{ p.name }}</span>
+                            <span class="badge bg-primary">{{ p.status }}</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ p.pct }}%;" aria-valuenow="{{ p.pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <small class="text-muted mt-1 d-block">{{ p.sold }} / {{ p.total }} Sites Sold ({{ p.pct }}%)</small>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-center py-3 text-muted">No projects found.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold">Upcoming Follow-ups</h5>
+            </div>
+            <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                <ul class="list-group list-group-flush">
+                    {% for item in overdue_items|slice:":5" %}
+                    <li class="list-group-item py-2 border-start border-danger border-4">
+                        <small class="text-danger fw-bold d-block">Overdue ({{ item.date|date:"d M" }})</small>
+                        <a href="{{ item.url }}" class="text-decoration-none fw-bold text-dark">{{ item.title }}</a>
+                        <small class="text-muted d-block">{{ item.type }}: {{ item.reason }}</small>
+                    </li>
+                    {% endfor %}
+                    {% for item in today_items|slice:":5" %}
+                    <li class="list-group-item py-2 border-start border-warning border-4">
+                        <small class="text-warning fw-bold d-block">Today</small>
+                        <a href="{{ item.url }}" class="text-decoration-none fw-bold text-dark">{{ item.title }}</a>
+                        <small class="text-muted d-block">{{ item.type }}: {{ item.reason }}</small>
+                    </li>
+                    {% endfor %}
+                    {% if not overdue_items and not today_items %}
+                    <li class="list-group-item text-center py-3 text-muted">No upcoming follow-ups.</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold">Recent Transactions</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Date</th><th>Type</th><th>Partner</th><th>Amount</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for t in recent_transactions|slice:":5" %}
+                            <tr>
+                                <td>{{ t.date|date:"d M Y" }}</td>
+                                <td><span class="badge {% if t.transaction_type == 'Received' %}bg-success{% else %}bg-danger{% endif %}">{{ t.transaction_type }}</span></td>
+                                <td>{{ t.paid_by|default:"-" }}</td>
+                                <td class="fw-bold">₹{{ t.amount|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center py-3 text-muted">No recent transactions.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold">Recent Activities</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for a in recent_activities|slice:":5" %}
+                    <li class="list-group-item py-3">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1 fw-bold">{{ a.activity_type }}</h6>
+                            <small class="text-muted">{{ a.date|timesince }} ago</small>
+                        </div>
+                        <p class="mb-1 text-secondary small">{{ a.note }}</p>
+                        <small class="text-muted">By {{ a.user.username }}</small>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-center py-3 text-muted">No recent activities.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const pLabels = {{ partner_labels|safe }};
+        const pInvest = {{ partner_invested_values|safe }};
+        const pReceive = {{ partner_received_values|safe }};
+        const pProfit = {{ partner_profit_values|safe }};
+
+        const sumInvest = pInvest.reduce((a, b) => a + b, 0);
+        const invData = sumInvest === 0 ? [1] : pInvest;
+        const invBg = sumInvest === 0 ? ['#ffffff'] : ['#0d6efd', '#fd7e14', '#198754', '#6f42c1', '#dc3545', '#0dcaf0'];
+        const invBorder = sumInvest === 0 ? ['#e0e0e0'] : ['#ffffff'];
+        const invLabels = sumInvest === 0 ? ['No Investments Yet'] : pLabels;
+
+        const sumReceive = pReceive.reduce((a, b) => a + b, 0);
+        const recData = sumReceive === 0 ? [1] : pReceive;
+        const recBg = sumReceive === 0 ? ['#ffffff'] : ['#0d6efd', '#fd7e14', '#198754', '#6f42c1', '#dc3545', '#0dcaf0'];
+        const recBorder = sumReceive === 0 ? ['#e0e0e0'] : ['#ffffff'];
+        const recLabels = sumReceive === 0 ? ['No Receipts Yet'] : pLabels;
+
+        const ctx1 = document.getElementById('investChart').getContext('2d');
+        new Chart(ctx1, {
+            type: 'doughnut',
+            data: {
+                labels: invLabels,
+                datasets: [{
+                    label: 'Invested',
+                    data: invData,
+                    backgroundColor: invBg,
+                    borderColor: invBorder,
+                    borderWidth: sumInvest === 0 ? 1 : 2
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+
+        const ctx2 = document.getElementById('receiptChart').getContext('2d');
+        new Chart(ctx2, {
+            type: 'pie',
+            data: {
+                labels: recLabels,
+                datasets: [{
+                    label: 'Received',
+                    data: recData,
+                    backgroundColor: recBg,
+                    borderColor: recBorder,
+                    borderWidth: sumReceive === 0 ? 1 : 2
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+
+        const sumProfit = pProfit.reduce((a, b) => a + b, 0);
+        const proData = sumProfit === 0 ? [1] : pProfit;
+        const proBg = sumProfit === 0 ? ['#ffffff'] : ['#0d6efd', '#fd7e14', '#198754', '#6f42c1', '#dc3545', '#0dcaf0'];
+        const proBorder = sumProfit === 0 ? ['#e0e0e0'] : ['#ffffff'];
+        const proLabels = sumProfit === 0 ? ['No Distributable Profits'] : pLabels;
+
+        
+        const siteVals = [{{ available_sites|default:0 }}, {{ booked_sites|default:0 }}, {{ blocked_sites|default:0 }}, {{ sold_sites|default:0 }}];
+        const sumSites = siteVals.reduce((a, b) => a + b, 0);
+        const siteData = sumSites === 0 ? [1] : siteVals;
+        const siteLabels = sumSites === 0 ? ['No Site Data'] : ['Available', 'Booked', 'Blocked', 'Sold'];
+        const siteBg = sumSites === 0 ? ['#ffffff'] : ['#28a745', '#ffc107', '#dc3545', '#007bff'];
+        const siteBorder = sumSites === 0 ? ['#e0e0e0'] : ['#ffffff'];
+
+        const ctxSite = document.getElementById('siteInventoryChart').getContext('2d');
+        new Chart(ctxSite, {
+            type: 'doughnut',
+            data: {
+                labels: siteLabels,
+                datasets: [{
+                    data: siteData,
+                    backgroundColor: siteBg,
+                    borderColor: siteBorder,
+                    borderWidth: sumSites === 0 ? 1 : 2
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+
+const ctx3 = document.getElementById('profitChart').getContext('2d');
+        new Chart(ctx3, {
+            type: 'pie',
+            data: {
+                labels: proLabels,
+                datasets: [{
+                    label: 'Profit Share',
+                    data: proData,
+                    backgroundColor: proBg,
+                    borderColor: proBorder,
+                    borderWidth: sumProfit === 0 ? 1 : 2
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,6 @@
+Django>=4.2.5
+asgiref>=3.7.0
+sqlparse>=0.4.4
+pillow>=10.0.0
+requests>=2.31.0
+tzdata>=2023.3

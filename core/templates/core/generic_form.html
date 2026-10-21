@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}{{ model_name }} Form | RE Manager{% endblock %}
+{% block content %}
+<style>
+    #id_participants, #id_expense_participants { list-style: none; padding-left: 0; }
+    #id_participants li, #id_expense_participants li { display: inline-block; margin-right: 15px; margin-bottom: 10px; background: #e9ecef; padding: 5px 12px; border-radius: 20px; border: 1px solid #ced4da; }
+    #id_participants input, #id_expense_participants input { margin-right: 6px; transform: scale(1.2); }
+    .errorlist { color: #dc3545; list-style-type: none; padding-left: 0; font-weight: bold; margin-bottom: 15px; }
+</style>
+
+<div class="card shadow-sm mt-4 mx-auto" style="max-width: 600px;">
+    <div class="card-header bg-white">
+        <h4 class="mb-0">{{ model_name }} Details</h4>
+    </div>
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            {% for field in form %}
+                {% if field.is_hidden %}
+                    {{ field }}
+                {% else %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold">{{ field.label }}{% if field.field.required %} <span class="text-danger fw-bold">*</span>{% endif %}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% if field.errors %}
+                        <div class="text-danger mt-1 fw-bold">{{ field.errors }}</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+            <div class="d-flex gap-2 mb-2 mt-4">
+                <button type="submit" class="btn btn-primary w-100 fw-bold">Save</button>
+                {% if object and request.resolver_match.url_name %}
+                    {% if "sharedexpense_update" in request.resolver_match.url_name %}
+                        <a href="{% url 'sharedexpense_delete' object.pk %}" class="btn btn-danger w-100 fw-bold">Delete Expense</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+            <a href="javascript:history.back()" class="btn btn-light w-100 fw-bold text-muted">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

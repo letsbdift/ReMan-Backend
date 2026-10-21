@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Land Deals | RE Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-4 border-bottom flex-wrap gap-2">
+    <h1 class="h2 mb-0">Land Deals</h1>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <form method="GET" class="d-flex m-0">
+            <select name="project_id" class="form-select border-primary text-primary fw-bold" style="min-width: 200px; border-radius: 20px;" onchange="this.form.submit()">
+                <option value="all">Global Overview (All Projects)</option>
+                {% for p in all_projects %}
+                <option value="{{ p.pk }}" {% if selected_project_id|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.project_name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <button onclick="exportTableToCSV('export.csv')" class="btn btn-outline-secondary rounded-pill px-3"><i class="bi bi-download"></i> Export</button>
+        <a href="{% url 'deal_create' %}?project_id={{ selected_project_id }}" class="btn btn-primary rounded-pill px-4">Add New</a>
+    </div>
+</div>
+<div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">
+    <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+            <tr>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Deal</th>
+                <th scope="col">Status</th>
+                <th scope="col">Landowner</th>
+                <th scope="col">Area</th>
+                <th scope="col" class="text-end">Price</th>
+                <th scope="col" class="text-center sticky-right" style="background: #f8f9fa; right: 0; z-index: 3;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in deals %}
+            <tr class="clickable-row bg-white" style="cursor: pointer;">
+                <td class="sticky-left bg-white" style="left: 0;">
+                    <div class="fw-bold text-primary text-truncate" style="max-width: 150px;" title="{{ d.deal_name }}">{{ d.deal_name }}</div>
+                    <div class="small text-muted"><i class="bi bi-geo-alt"></i> {{ d.location|default:"-" }}</div>
+                </td>
+                <td><span class="badge bg-info text-dark">{{ d.status }}</span></td>
+                <td><div class="text-truncate" style="max-width: 120px;" title="{{ d.landowner|default:'' }}">{{ d.landowner|default:"-" }}</div></td>
+                <td>{{ d.land_area|default:"-" }}</td>
+                <td class="text-end fw-bold text-success">₹{{ d.negotiated_price|default:d.expected_price|default:"-" }}</td>
+                
+                <td class="d-none record-details">
+                    <div data-label="Deal Name">{{ d.deal_name|default:"-" }}</div>
+                    <div data-label="Project">{{ d.project.project_name|default:"-" }}</div>
+                    <div data-label="Status"><span class="badge bg-info text-dark">{{ d.status }}</span></div>
+                    <div data-label="Location">{{ d.location|default:"-" }}</div>
+                    <div data-label="Landowner">{{ d.landowner|default:"-" }}</div>
+                    <div data-label="Broker">{{ d.broker|default:"-" }}</div>
+                    <div data-label="Survey Number">{{ d.survey_number|default:"-" }}</div>
+                    <div data-label="Area">{{ d.land_area|default:"-" }}</div>
+                    <div data-label="Expected Price">₹{{ d.expected_price|default:"-" }}</div>
+                    <div data-label="Offered Price">₹{{ d.offered_price|default:"-" }}</div>
+                    <div data-label="Negotiated Price">₹{{ d.negotiated_price|default:"-" }}</div>
+                    <div data-label="Next Follow-up">{{ d.next_follow_up|date:"M d, Y H:i"|default:"-" }}</div>
+                    <div data-label="Notes">{{ d.notes|default:"-" }}</div>
+                </td>
+                
+                <td class="text-center sticky-right bg-white" style="right: 0;">
+                    <div class="card-footer d-none">
+                        <a href="{% url 'deal_update' d.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-pencil-square me-1"></i> Edit</a>
+                        <a href="{% url 'deal_delete' d.pk %}" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-trash me-1"></i> Delete</a>
+                    </div>
+                    <a href="{% url 'deal_update' d.pk %}" class="btn btn-sm btn-light text-primary border" onclick="event.stopPropagation();"><i class="bi bi-pencil-square"></i></a>
+                    <a href="{% url 'deal_delete' d.pk %}" class="btn btn-sm btn-light text-danger border ms-1" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center p-5 text-muted">No deals found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

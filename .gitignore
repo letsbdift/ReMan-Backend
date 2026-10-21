@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Database and Media
+db.sqlite3
+db.sqlite3-journal
+media/documents/
+media/receipts/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Root level scratch and deployment scripts
+/*.py
+!manage.py
+
+# Root temporary files
+/*.html
+/*.txt
+!requirements.txt
+/*.zip
+/*.tar.gz
+/*.ps1

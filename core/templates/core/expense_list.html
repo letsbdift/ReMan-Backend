@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Expenses | RE Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-4 border-bottom flex-wrap gap-2">
+    <h1 class="h2 mb-0">Expenses</h1>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        
+<div class="card-body border-bottom bg-light">
+    
+
+<form method="GET" class="row g-3 align-items-center">
+    <div class="col-auto">
+        <select name="project_id" class="form-select">
+            <option value="all">All Projects</option>
+            {% for p in all_projects %}
+            <option value="{{ p.id }}" {% if p.id|stringformat:"s" == selected_project_id %}selected{% endif %}>{{ p.project_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="category_id" class="form-select">
+            <option value="all">All Categories</option>
+            {% for c in all_categories %}
+            <option value="{{ c.id }}" {% if c.id|stringformat:"s" == selected_category_id %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="paid_by_name" class="form-select">
+            <option value="all">Paid By (All Partners)</option>
+            {% for c in all_partners %}
+            <option value="{{ c.name }}" {% if c.name == selected_paid_by_name %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+        <a href="{% url 'expense_list' %}" class="btn btn-secondary">Clear</a>
+    </div>
+</form>
+
+
+</div>
+
+        <button onclick="exportTableToCSV('export.csv')" class="btn btn-outline-secondary rounded-pill px-3"><i class="bi bi-download"></i> Export</button>
+        <a href="{% url 'expense_create' %}?project_id={{ selected_project_id }}" class="btn btn-primary rounded-pill px-4">Add New</a>
+    </div>
+</div>
+<div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">
+    <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+            <tr>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Date</th>
+                <th scope="col">Description</th>
+                <th scope="col">Category</th>
+                <th scope="col">Paid To</th>
+                <th scope="col">Paid By</th>
+                <th scope="col" class="text-end">Amount</th>
+                <th scope="col" class="text-center">Status</th>
+                <th scope="col" class="text-center sticky-right" style="background: #f8f9fa; right: 0; z-index: 3;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in expenses %}
+            <tr class="clickable-row bg-white" style="cursor: pointer;">
+                <td class="sticky-left fw-bold bg-white" style="left: 0;">{{ e.date|date:"Y-m-d" }}</td>
+                <td><div class="text-truncate" style="max-width: 150px;" title="{{ e.description }}">{{ e.description }}</div></td>
+                <td><span class="badge bg-secondary">{{ e.category|default:"-" }}</span></td>
+                <td><div class="text-truncate" style="max-width: 100px;" title="{{ e.paid_to|default:'' }}">{{ e.paid_to|default:"-" }}</div></td>
+                <td><div class="text-truncate" style="max-width: 100px;" title="{{ e.paid_by|default:'' }}">{{ e.paid_by|default:"-" }}</div></td>
+                <td class="text-end text-danger fw-bold">₹{{ e.amount }}</td>
+                
+                <td class="text-center">
+                    <span class="badge {% if e.status == 'Paid' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ e.status|default:"Paid" }}</span>
+                </td>
+                
+                <td class="d-none record-details">
+                    <div data-label="Project">{{ e.project.project_name|default:"-" }}</div>
+                    <div data-label="Date">{{ e.date|date:"Y-m-d" }}</div>
+                    <div data-label="Amount">₹{{ e.amount }}</div>
+                    <div data-label="Category"><span class="badge bg-secondary">{{ e.category|default:"-" }}</span></div>
+                    <div data-label="Project/Deal">{% if e.project %}{{ e.project.project_name }}{% elif e.project_or_deal %}{{ e.project_or_deal }}{% else %}-{% endif %}</div>
+                    <div data-label="Paid To">{{ e.paid_to|default:"-" }}</div>
+                    <div data-label="Description">{{ e.description }}</div>
+                    <div data-label="Method">{{ e.payment_method|default:"-" }}</div>
+                    <div data-label="Paid By">{{ e.paid_by|default:"-" }}</div>
+                    <div data-label="Receipt">{% if e.receipt %}<a href="{{ e.receipt.url }}" target="_blank"><i class="bi bi-file-earmark-text"></i> View</a>{% else %}-{% endif %}</div>
+                    <div data-label="Notes">{{ e.notes|default:"-" }}</div>
+                </td>
+                
+                <td class="text-center sticky-right bg-white" style="right: 0;">
+                    <div class="card-footer d-none">
+                        <a href="{% url 'expense_update' e.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-pencil-square me-1"></i> Edit</a>
+                        <a href="{% url 'expense_delete' e.pk %}" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-trash me-1"></i> Delete</a>
+                    </div>
+                    <a href="{% url 'expense_update' e.pk %}" class="btn btn-sm btn-light text-primary border" onclick="event.stopPropagation();"><i class="bi bi-pencil-square"></i></a>
+                    <a href="{% url 'expense_delete' e.pk %}" class="btn btn-sm btn-light text-danger border ms-1" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center p-5 text-muted">No expenses found.</td></tr>
+            {% endfor %}
+        </tbody>
+        <tfoot class="table-light fw-bold" style="border-top: 2px solid #dee2e6;">
+            <tr>
+                <td colspan="5" class="text-end text-uppercase text-muted">Grand Total (Filtered):</td>
+                <td class="text-end fs-5 text-primary">₹{{ grand_total|default:"0.00" }}</td>
+                <td colspan="2"></td>
+            </tr>
+        </tfoot>
+    
+    </table>
+</div>
+{% endblock %}

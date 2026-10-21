@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Projects | RE Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2">Projects</h1>
+    <a href="{% url "project_create" %}" class="btn btn-primary">Add Project</a>
+</div>
+<div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">
+    <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+            <tr>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Project Name</th>
+                <th scope="col">Status</th>
+                <th scope="col">Location</th>
+                <th scope="col">Total Area</th>
+                <th scope="col" class="text-end">Dev Cost</th>
+                <th scope="col" class="text-center sticky-right" style="background: #f8f9fa; right: 0; z-index: 3;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in projects %}
+            <tr class="clickable-row bg-white" style="cursor: pointer;">
+                <td class="sticky-left fw-bold text-primary bg-white" style="left: 0;">{{ p.project_name }}</td>
+                <td><span class="badge bg-success">{{ p.status }}</span></td>
+                <td><div class="text-truncate" style="max-width: 150px;" title="{{ p.location|default:'' }}"><i class="bi bi-geo-alt"></i> {{ p.location|default:"-" }}</div></td>
+                <td>{{ p.land_area|default:"-" }}</td>
+                <td class="text-end text-danger">₹{{ p.development_cost|default:"0.00" }}</td>
+                
+                <td class="d-none record-details">
+                    <div data-label="Project Name">{{ p.project_name|default:"-" }}</div>
+                    <div data-label="Location">{{ p.location|default:"-" }}</div>
+                    <div data-label="Landowner">{{ p.landowner|default:"-" }}</div>
+                    <div data-label="Survey Number">{{ p.survey_number|default:"-" }}</div>
+                    <div data-label="Total Area">{{ p.land_area|default:"-" }}</div>
+                    <div data-label="Purchase Cost">₹{{ p.purchase_cost|default:"0.00" }}</div>
+                    <div data-label="Development Cost">₹{{ p.development_cost|default:"0.00" }}</div>
+                    <div data-label="Status"><span class="badge bg-success">{{ p.status }}</span></div>
+                    <div data-label="Notes">{{ p.notes|default:"-" }}</div>
+                </td>
+                
+                <td class="text-center sticky-right bg-white" style="right: 0;">
+                    <div class="card-footer d-none">
+                        <a href="{% url 'project_update' p.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-pencil-square me-1"></i> Edit</a>
+                        <a href="{% url 'project_delete' p.pk %}" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-trash me-1"></i> Delete</a>
+                    </div>
+                    <a href="{% url 'project_update' p.pk %}" class="btn btn-sm btn-light text-primary border" onclick="event.stopPropagation();"><i class="bi bi-pencil-square"></i></a>
+                    <a href="{% url 'project_delete' p.pk %}" class="btn btn-sm btn-light text-danger border ms-1" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center p-5 text-muted">No projects found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

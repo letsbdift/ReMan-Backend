@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Follow-ups | RE Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-4 border-bottom flex-wrap gap-2">
+    <h1 class="h2 mb-0">Follow-ups</h1>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <form method="GET" class="d-flex m-0">
+            <select name="project_id" class="form-select border-primary text-primary fw-bold" style="min-width: 200px; border-radius: 20px;" onchange="this.form.submit()">
+                <option value="all">Global Overview (All Projects)</option>
+                {% for p in all_projects %}
+                <option value="{{ p.pk }}" {% if selected_project_id|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.project_name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <button onclick="exportTableToCSV('export.csv')" class="btn btn-outline-secondary rounded-pill px-3"><i class="bi bi-download"></i> Export</button>
+        <a href="{% url 'followup_create' %}?project_id={{ selected_project_id }}" class="btn btn-primary rounded-pill px-4">Add New</a>
+    </div>
+</div>
+<div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">
+    <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+            <tr>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Date</th>
+                <th scope="col">Status</th>
+                <th scope="col">Related To</th>
+                <th scope="col">Reason</th>
+                <th scope="col" class="text-center sticky-right" style="background: #f8f9fa; right: 0; z-index: 3;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in followups %}
+            <tr class="clickable-row bg-white" style="cursor: pointer;">
+                <td class="sticky-left fw-bold bg-white" style="left: 0;">
+                    {{ f.date|date:"Y-m-d" }}
+                    <div class="small text-muted">{{ f.time|time:"H:i"|default:"" }}</div>
+                </td>
+                <td><span class="badge {% if f.status == 'Completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ f.status }}</span></td>
+                <td><div class="text-truncate" style="max-width: 150px;" title="{{ f.related_to|default:'' }}">{{ f.related_to|default:"-" }}</div></td>
+                <td><div class="text-truncate" style="max-width: 150px;" title="{{ f.reason|default:'' }}">{{ f.reason|default:"-" }}</div></td>
+                
+                <td class="d-none record-details">
+                    <div data-label="Project">{{ f.project.project_name|default:"-" }}</div>
+                    <div data-label="Related To">{{ f.related_to|default:"-" }}</div>
+                    <div data-label="Date">{{ f.date|date:"Y-m-d" }}</div>
+                    <div data-label="Time">{{ f.time|time:"H:i"|default:"-" }}</div>
+                    <div data-label="Reason">{{ f.reason|default:"-" }}</div>
+                    <div data-label="Note">{{ f.note|default:"-" }}</div>
+                    <div data-label="Next Action">{{ f.next_action|default:"-" }}</div>
+                    <div data-label="Status"><span class="badge {% if f.status == 'Completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ f.status }}</span></div>
+                </td>
+                
+                <td class="text-center sticky-right bg-white" style="right: 0;">
+                    <div class="card-footer d-none">
+                        <a href="{% url 'followup_update' f.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-pencil-square me-1"></i> Edit</a>
+                        <a href="{% url 'followup_delete' f.pk %}" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-trash me-1"></i> Delete</a>
+                    </div>
+                    <a href="{% url 'followup_update' f.pk %}" class="btn btn-sm btn-light text-primary border" onclick="event.stopPropagation();"><i class="bi bi-pencil-square"></i></a>
+                    <a href="{% url 'followup_delete' f.pk %}" class="btn btn-sm btn-light text-danger border ms-1" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center p-5 text-muted">No follow-ups found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}Site Inventory | RE Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom flex-wrap gap-2">
+    <h1 class="h2 mb-0">Site Inventory</h1>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <form method="GET" class="d-flex m-0">
+            <select name="project_id" class="form-select border-primary text-primary fw-bold" style="min-width: 200px; border-radius: 20px;" onchange="this.form.submit()">
+                <option value="all">Global Overview (All Projects)</option>
+                {% for p in all_projects %}
+                <option value="{{ p.pk }}" {% if selected_project_id|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.project_name }}</option>
+                {% endfor %}
+            </select>
+            {% if selected_status %}
+            <input type="hidden" name="status" value="{{ selected_status }}">
+            {% endif %}
+        </form>
+        <button type="button" class="btn btn-outline-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#importModal"><i class="bi bi-file-earmark-excel"></i> Import</button>
+        <a href="{% url 'site_create' %}?project_id={{ selected_project_id }}" class="btn btn-primary rounded-pill px-4">Add Site</a>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link {% if selected_status == 'All' or not selected_status %}active fw-bold{% endif %}" href="?project_id={{ selected_project_id }}&status=All">All Sites</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link text-success {% if selected_status == 'Available' %}active fw-bold{% endif %}" href="?project_id={{ selected_project_id }}&status=Available">Available</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link text-warning {% if selected_status == 'Booked' %}active fw-bold{% endif %}" href="?project_id={{ selected_project_id }}&status=Booked">Booked</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link text-secondary {% if selected_status == 'Sold' %}active fw-bold{% endif %}" href="?project_id={{ selected_project_id }}&status=Sold">Sold</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link text-danger {% if selected_status == 'Blocked' %}active fw-bold{% endif %}" href="?project_id={{ selected_project_id }}&status=Blocked">Blocked</a>
+    </li>
+</ul>
+
+<!-- Excel Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{% url 'site_import' %}" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Import Sites</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+              <label class="form-label fw-bold">Destination Project <span class="text-danger fw-bold">*</span></label>
+              <select name="project_id" class="form-select" required>
+                  <option value="">-- Select Project --</option>
+                  {% for p in all_projects %}
+                  <option value="{{ p.pk }}" {% if selected_project_id|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.project_name }}</option>
+                  {% endfor %}
+              </select>
+          </div>
+          <div class="mb-3">
+              <label class="form-label fw-bold">Upload Excel/CSV <span class="text-danger fw-bold">*</span></label>
+              <input type="file" name="file" class="form-control" required>
+              <small class="text-muted d-block mb-2">Cols needed: site_number, area, dimensions, facing, road_width, price, status</small><a href="{% url 'site_import_template' %}" class="btn btn-sm btn-outline-info"><i class="bi bi-download"></i> Download Sample CSV Template</a>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-success">Import</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- Quick Filters -->
+<div class="mb-4 d-flex gap-2 flex-wrap">
+    <span class="badge bg-success py-2 px-3">Available</span>
+    <span class="badge bg-warning text-dark py-2 px-3">Booked</span>
+    <span class="badge bg-danger py-2 px-3">Sold</span>
+    <span class="badge bg-secondary py-2 px-3">Blocked</span>
+</div>
+
+<div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">
+    <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+            <tr>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Site No.</th>
+                <th scope="col">Status</th>
+                <th scope="col">Area</th>
+                <th scope="col">Customer</th>
+                <th scope="col" class="text-end">Price</th>
+                <th scope="col" class="text-center sticky-right" style="background: #f8f9fa; right: 0; z-index: 3;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sites %}
+            <tr class="clickable-row bg-white" style="cursor: pointer;">
+                <td class="sticky-left fw-bold text-primary bg-white" style="left: 0;">{{ s.site_number }}</td>
+                <td><span class="badge {% if s.status == 'Available' %}bg-success{% elif s.status == 'Booked' %}bg-warning text-dark{% elif s.status == 'Sold' %}bg-secondary{% else %}bg-danger{% endif %}">{{ s.status }}</span></td>
+                <td>{{ s.area|default:"-" }}</td>
+                <td><div class="text-truncate" style="max-width: 120px;" title="{{ s.customer|default:'' }}">{{ s.customer|default:"-" }}</div></td>
+                <td class="text-end" style="min-width: 150px;">
+                    <div class="fw-bold text-success">₹{{ s.price|default:"0" }}</div>
+                    <div class="progress mt-1" style="height: 6px;" title="Received: ₹{{ s.amount_received }} / Balance: ₹{{ s.balance }}">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {% widthratio s.amount_received s.price 100 %}%;" aria-valuenow="{{ s.amount_received }}" aria-valuemin="0" aria-valuemax="{{ s.price|default:'1' }}"></div>
+                    </div>
+                </td>
+                
+                <td class="d-none record-details">
+                    <div data-label="Site No.">{{ s.site_number|default:"-" }}</div>
+                    <div data-label="Project">{{ s.project.project_name|default:"-" }}</div>
+                    <div data-label="Status"><span class="badge {% if s.status == 'Available' %}bg-success{% elif s.status == 'Booked' %}bg-warning text-dark{% elif s.status == 'Sold' %}bg-secondary{% else %}bg-danger{% endif %}">{{ s.status }}</span></div>
+                    <div data-label="Area">{{ s.area|default:"-" }}</div>
+                    <div data-label="Dimensions">{{ s.dimensions|default:"-" }}</div>
+                    <div data-label="Facing">{{ s.facing|default:"-" }}</div>
+                    <div data-label="Road Width">{{ s.road_width|default:"-" }}</div>
+                    <div data-label="Price">₹{{ s.price|default:"-" }}</div>
+                    <div data-label="Customer">{{ s.customer|default:"-" }}</div>
+                    <div data-label="Amount Received">₹{{ s.amount_received|default:"0.00" }}</div>
+                    <div data-label="Balance">₹{{ s.balance|default:"0.00" }}</div>
+                    <div data-label="Notes">{{ s.notes|default:"-" }}</div>
+                </td>
+                
+                <td class="text-center sticky-right bg-white" style="right: 0;">
+                    <div class="card-footer d-none">
+                        <a href="{% url 'site_update' s.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-pencil-square me-1"></i> Edit</a>
+                        <a href="{% url 'site_delete' s.pk %}" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-trash me-1"></i> Delete</a>
+                    </div>
+                    <a href="{% url 'site_update' s.pk %}" class="btn btn-sm btn-light text-primary border" onclick="event.stopPropagation();"><i class="bi bi-pencil-square"></i></a>
+                    <a href="{% url 'site_delete' s.pk %}" class="btn btn-sm btn-light text-danger border ms-1" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center p-5 text-muted">No sites found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

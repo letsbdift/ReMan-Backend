@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Documents | RE Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-4 border-bottom flex-wrap gap-2">
+    <h1 class="h2 mb-0">Documents</h1>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <form method="GET" class="d-flex m-0">
+            <select name="project_id" class="form-select border-primary text-primary fw-bold" style="min-width: 200px; border-radius: 20px;" onchange="this.form.submit()">
+                <option value="all">Global Overview (All Projects)</option>
+                {% for p in all_projects %}
+                <option value="{{ p.pk }}" {% if selected_project_id|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.project_name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <a href="{% url 'document_create' %}?project_id={{ selected_project_id }}" class="btn btn-primary rounded-pill px-4">Upload Document</a>
+    </div>
+</div>
+
+<div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">
+    <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+            <tr>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Title</th>
+                <th scope="col">Project</th>
+                <th scope="col">Related To</th>
+                <th scope="col">Uploaded</th>
+                <th scope="col" class="text-center sticky-right" style="background: #f8f9fa; right: 0; z-index: 3;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in object_list %}
+            <tr class="clickable-row bg-white" style="cursor: pointer;">
+                <td class="sticky-left fw-bold text-primary bg-white" style="left: 0;">
+                    <i class="bi bi-file-earmark-text text-secondary me-1"></i>
+                    <div class="d-inline-block text-truncate" style="max-width: 150px; vertical-align: bottom;" title="{{ d.title }}">{{ d.title }}</div>
+                </td>
+                <td>{{ d.project.project_name|default:"-" }}</td>
+                <td><div class="text-truncate" style="max-width: 150px;" title="{{ d.related_to|default:'' }}">{{ d.related_to|default:"-" }}</div></td>
+                <td>{{ d.uploaded_at|date:"M d, Y" }}</td>
+                
+                <td class="d-none record-details">
+                    <div data-label="Project">{{ d.project.project_name|default:"-" }}</div>
+                    <div data-label="Title">{{ d.title }}</div>
+                    <div data-label="Related To">{{ d.related_to|default:"-" }}</div>
+                    <div data-label="Date Uploaded">{{ d.uploaded_at|date:"Y-m-d H:i" }}</div>
+                    <div data-label="File">{% if d.file %}<a href="{{ d.file.url }}" target="_blank"><i class="bi bi-eye"></i> Download</a>{% else %}-{% endif %}</div>
+                </td>
+                
+                <td class="text-center sticky-right bg-white" style="right: 0;">
+                    <div class="card-footer d-none">
+                        <a href="{% url 'document_update' d.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-pencil-square me-1"></i> Edit</a>
+                        <a href="{% url 'document_delete' d.pk %}" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-trash me-1"></i> Delete</a>
+                    </div>
+                    {% if d.file %}<a href="{{ d.file.url }}" target="_blank" class="btn btn-sm btn-light text-success border" onclick="event.stopPropagation();"><i class="bi bi-eye"></i></a>{% endif %}
+                    <a href="{% url 'document_update' d.pk %}" class="btn btn-sm btn-light text-primary border ms-1" onclick="event.stopPropagation();"><i class="bi bi-pencil-square"></i></a>
+                    <a href="{% url 'document_delete' d.pk %}" class="btn btn-sm btn-light text-danger border ms-1" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center p-5 text-muted">No documents found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

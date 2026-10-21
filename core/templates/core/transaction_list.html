@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}Transactions | RE Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-4 border-bottom flex-wrap gap-2">
+    <h1 class="h2 mb-0">Transactions</h1>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        
+<div class="card-body border-bottom bg-light">
+    
+
+<form method="GET" class="row g-3 align-items-center">
+    <div class="col-auto">
+        <select name="project_id" class="form-select">
+            <option value="all">All Projects</option>
+            {% for p in all_projects %}
+            <option value="{{ p.id }}" {% if p.id|stringformat:"s" == selected_project_id %}selected{% endif %}>{{ p.project_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="transaction_type" class="form-select">
+            <option value="all">All Types</option>
+            <option value="Paid" {% if selected_transaction_type == 'Paid' %}selected{% endif %}>Paid</option>
+            <option value="Received" {% if selected_transaction_type == 'Received' %}selected{% endif %}>Received</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="partner_name" class="form-select">
+            <option value="all">All Partners</option>
+            <option value="Company funds" {% if 'Company funds' == selected_partner_name %}selected{% endif %}>Company funds</option>
+            {% for c in all_partners %}
+            <option value="{{ c.name }}" {% if c.name == selected_partner_name %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="payment_method" class="form-select">
+            <option value="all">All Methods</option>
+            <option value="Cash" {% if selected_payment_method == 'Cash' %}selected{% endif %}>Cash</option>
+            <option value="Bank Transfer" {% if selected_payment_method == 'Bank Transfer' %}selected{% endif %}>Bank Transfer</option>
+            <option value="UPI" {% if selected_payment_method == 'UPI' %}selected{% endif %}>UPI</option>
+            <option value="Cheque" {% if selected_payment_method == 'Cheque' %}selected{% endif %}>Cheque</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+        <a href="{% url 'transaction_list' %}" class="btn btn-secondary">Clear</a>
+    </div>
+</form>
+
+
+</div>
+
+        <button onclick="exportTableToCSV('export.csv')" class="btn btn-outline-secondary rounded-pill px-3"><i class="bi bi-download"></i> Export</button>
+        <a href="{% url 'transaction_create' %}?project_id={{ selected_project_id }}" class="btn btn-primary rounded-pill px-4">Add New</a>
+    </div>
+</div>
+<div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">
+    <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+            <tr>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Date</th>
+                <th scope="col">Transaction Purpose</th>
+                <th scope="col">Contact</th>
+                <th scope="col">Type</th>
+                <th scope="col">Paid By / Received By</th>
+                <th scope="col" class="text-end">Amount</th>
+                <th scope="col" class="text-center sticky-right" style="background: #f8f9fa; right: 0; z-index: 3;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in transactions %}
+            <tr class="clickable-row bg-white" style="cursor: pointer;">
+                <td class="sticky-left fw-bold bg-white" style="left: 0;">
+                    <div class="text-dark">{{ p.date|date:"Y-m-d" }}</div>
+                </td>
+                <td>{{ p.payment_type }}</td>
+                <td><div class="text-truncate" style="max-width: 120px;" title="{{ p.contact|default:'-' }}">{{ p.contact.name|default:"-" }}</div></td>
+                <td><span class="badge {% if p.transaction_type == 'Received' %}bg-success{% else %}bg-danger{% endif %}">{{ p.transaction_type }}</span></td>
+                <td><div class="text-truncate" style="max-width: 120px;">{{ p.paid_by|default:"-" }}</div></td>
+                <td class="text-end fw-bold {% if p.transaction_type == 'Received' %}text-success{% else %}text-danger{% endif %}">₹{{ p.amount }}</td>
+                
+                <td class="d-none record-details">
+                    <div data-label="Project">{{ p.project.project_name|default:"-" }}</div>
+                    <div data-label="Date">{{ p.date|date:"Y-m-d" }}</div>
+                    <div data-label="Contact">{% if p.contact %}{{ p.contact.name }}{% elif p.paid_by %}{{ p.paid_by }}{% else %}-{% endif %}</div>
+                    <div data-label="Project or Deal">{{ p.project_or_deal|default:"-" }}</div>
+                    <div data-label="Transaction Type">{{ p.payment_type }}</div>
+                    <div data-label="Amount">₹{{ p.amount }}</div>
+                    <div data-label="Paid/Received"><span class="badge {% if p.transaction_type == 'Received' %}bg-success{% else %}bg-danger{% endif %}">{{ p.transaction_type }}</span></div>
+                    <div data-label="Transaction method">{{ p.payment_method|default:"-" }}</div>
+                    <div data-label="Paid By">{% if p.contact %}{{ p.contact.name }}{% elif p.paid_by %}{{ p.paid_by }}{% else %}-{% endif %}</div>
+                    <div data-label="Reference">{{ p.reference|default:"-" }}</div>
+                    <div data-label="Notes">{{ p.notes|default:"-" }}</div>
+                </td>
+                
+                <td class="text-center sticky-right bg-white" style="right: 0;">
+                    <div class="card-footer d-none">
+                        <a href="{% url 'transaction_update' p.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-pencil-square me-1"></i> Edit</a>
+                        <a href="{% url 'transaction_delete' p.pk %}" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-trash me-1"></i> Delete</a>
+                    </div>
+                    <a href="{% url 'transaction_update' p.pk %}" class="btn btn-sm btn-light text-primary border" onclick="event.stopPropagation();"><i class="bi bi-pencil-square"></i></a>
+                    <a href="{% url 'transaction_delete' p.pk %}" class="btn btn-sm btn-light text-danger border ms-1" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center p-5 text-muted">No transactions found.</td></tr>
+            {% endfor %}
+        </tbody>
+        <tfoot class="table-light fw-bold" style="border-top: 2px solid #dee2e6;">
+            <tr>
+                <td colspan="5" class="text-end text-uppercase text-muted">Grand Total (Filtered):</td>
+                <td class="text-end fs-5 text-primary">₹{{ grand_total|default:"0.00" }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    
+    </table>
+</div>
+{% endblock %}

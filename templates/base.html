@@ -1,0 +1,249 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Real Estate Manager{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --sw-green: #5bc5a7;
+            --sw-orange: #ff652f;
+            --sw-dark: #333333;
+            --sw-bg: #f6f6f6;
+        }
+        body { background-color: var(--sw-bg); color: var(--sw-dark); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; }
+        
+        /* Sidebar styles */
+        .sidebar { background-color: white; border-right: 1px solid #e0e0e0; z-index: 1045; }
+        @media (min-width: 768px) {
+            .sidebar { min-height: 100vh; position: sticky; top: 0; box-shadow: 2px 0 5px rgba(0,0,0,0.02); }
+        }
+        
+        .sidebar h5 { color: var(--sw-green); font-weight: bold; font-size: 1.2rem; }
+        .sidebar a { color: #666; font-weight: 500; text-decoration: none; display: block; padding: 12px 15px; border-radius: 6px; margin: 2px 10px; }
+        .sidebar a:hover { background-color: #f0f0f0; color: var(--sw-dark); }
+        .sidebar .nav-item i { color: #999; margin-right: 12px; font-size: 1.1rem; }
+        
+        .content { padding-bottom: 2rem; } 
+        
+        .btn-sw-green { background-color: var(--sw-green); color: white; border: none; }
+        .btn-sw-green:hover { background-color: #48a68c; color: white; }
+        .text-sw-green { color: var(--sw-green) !important; }
+        
+                @media (max-width: 767.98px) {
+            .offcanvas-start {
+                width: max-content !important;
+                max-width: 65vw !important;
+            }
+            .sidebar a {
+                white-space: normal;
+                word-wrap: break-word;
+            }
+        }
+        
+        .asteriskField, .required-asterisk, span.asterisk {
+            color: #dc3545 !important;
+            font-weight: bold;
+            margin-left: 2px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Header -->
+    <header class="navbar navbar-light bg-white sticky-top d-md-none border-bottom shadow-sm px-3 py-2">
+        <a class="navbar-brand text-sw-green fw-bold fs-5" href="#">RE Manager</a>
+        <button class="navbar-toggler border-0 px-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 p-0 bg-white sidebar offcanvas-md offcanvas-start" tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel" data-bs-backdrop="false">
+                <div class="offcanvas-header border-bottom d-md-none px-3 py-3">
+                    <h5 class="offcanvas-title text-sw-green fw-bold mb-0" id="sidebarMenuLabel">Menu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebarMenu" aria-label="Close"></button>
+                </div>
+                
+                <div class="offcanvas-body d-md-flex flex-column p-0 pt-lg-3 w-100 overflow-y-auto" style="max-height: 100vh;">
+                    <h5 class="px-3 d-none d-md-block">RE Manager</h5>
+                    <ul class="nav flex-column mt-md-3 w-100 pb-4">
+                        <li class="nav-item"><a href="{% url 'dashboard' %}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                        <li class="nav-item"><a href="{% url 'contact_list' %}"><i class="bi bi-people"></i> Contacts</a></li>
+                        <li class="nav-item"><a href="{% url 'lead_list' %}"><i class="bi bi-person-lines-fill"></i> Leads</a></li>
+                        <li class="nav-item"><a href="{% url 'deal_list' %}"><i class="bi bi-briefcase"></i> Land Deals</a></li>
+                        <li class="nav-item"><a href="{% url 'site_list' %}"><i class="bi bi-grid-3x3-gap-fill"></i> Site Inventory</a></li>
+                        <li class="nav-item"><a href="{% url 'followup_list' %}"><i class="bi bi-calendar-check"></i> Follow-ups</a></li>
+                        <li class="nav-item"><a href="{% url 'project_list' %}"><i class="bi bi-building"></i> Projects</a></li>
+                        <li class="nav-item"><a href="{% url 'transaction_list' %}"><i class="bi bi-cash-stack"></i> Transactions</a></li>
+                        <li class="nav-item"><a href="{% url 'expense_list' %}"><i class="bi bi-receipt"></i> Expenses</a></li>
+                        <li class="nav-item"><a href="{% url 'shared_expense_list' %}"><i class="bi bi-pie-chart"></i> Shared Expenses</a></li>
+                        <li class="nav-item"><a href="{% url 'document_list' %}"><i class="bi bi-file-earmark-text"></i> Documents</a></li>
+                    </ul>
+                    
+                    {% if user.is_authenticated %}
+                        <div class="px-3 mt-auto mb-3">
+                            <hr class="d-none d-md-block">
+                            <small class="text-muted d-block mb-2">Signed in as <strong class="text-dark">{{ user.username }}</strong></small>
+                            <form action="{% url 'logout' %}" method="post" class="d-inline w-100">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-light w-100 border fw-bold text-muted py-2">Logout</button>
+                            </form>
+                        </div>
+                    {% endif %}
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-3 px-md-4 content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Global Slide-out Drawer for Record Details -->
+<div class="offcanvas offcanvas-end shadow" tabindex="-1" id="recordDetailDrawer" aria-labelledby="recordDetailDrawerLabel" style="width: 450px; max-width: 90vw; z-index: 1050;">
+  <div class="offcanvas-header bg-light border-bottom">
+    <h5 class="offcanvas-title fw-bold text-primary" id="recordDetailDrawerLabel">
+      <i class="bi bi-info-circle me-2"></i>Record Details
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body p-4">
+    <div id="recordDetailContent" class="d-flex flex-column gap-3">
+      <!-- Content populated by JS -->
+    </div>
+  </div>
+  <div class="offcanvas-footer bg-light border-top p-3 text-end" id="recordDetailFooter">
+    <!-- Action buttons populated by JS -->
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const drawerEl = document.getElementById('recordDetailDrawer');
+    if (!drawerEl) return;
+    
+    // Initialize offcanvas
+    let drawer = null;
+    if (typeof bootstrap !== 'undefined') {
+        drawer = new bootstrap.Offcanvas(drawerEl, { backdrop: true });
+    }
+    
+    const cards = document.querySelectorAll('.clickable-card, .clickable-row');
+    cards.forEach(card => {
+        card.style.cursor = 'pointer';
+        card.classList.add('hover-shadow'); 
+        card.addEventListener('click', function(e) {
+            // Ignore if clicking action buttons or links
+            if (e.target.closest('a') || e.target.closest('button')) {
+                return;
+            }
+            e.preventDefault();
+            
+            let contentHtml = '';
+            const detailNodes = card.querySelectorAll('.record-details > div');
+            detailNodes.forEach(node => {
+                const label = node.getAttribute('data-label');
+                const val = node.innerHTML.trim();
+                if(val && val !== '-' && val !== 'None') {
+                    contentHtml += `<div class="border-bottom pb-2 mb-2"><small class="text-muted text-uppercase fw-bold" style="font-size: 0.75rem;">${label}</small><div class="fs-6 fw-medium text-dark mt-1">${val}</div></div>`;
+                }
+            });
+            
+            const actionsNode = card.querySelector('.card-footer');
+            let actionHtml = actionsNode ? actionsNode.innerHTML : '';
+            
+            document.getElementById('recordDetailContent').innerHTML = contentHtml;
+            document.getElementById('recordDetailFooter').innerHTML = actionHtml;
+            
+            if (drawer) {
+                drawer.show();
+            } else {
+                console.error("Bootstrap is not defined, cannot show drawer.");
+                alert("Please refresh the page. Drawer component failed to load.");
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.hover-shadow:hover {
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+    transform: translateY(-2px);
+    transition: all 0.2s ease-in-out;
+}
+.clickable-card {
+    transition: all 0.2s ease-in-out;
+}
+/* Ensure offcanvas backdrop works correctly */
+.offcanvas-backdrop {
+    z-index: 1040 !important;
+}
+</style>
+
+
+<script>
+    // Dark Mode
+    const toggle = document.getElementById('darkModeToggle');
+    const body = document.body;
+    if (localStorage.getItem('theme') === 'dark') {
+        body.setAttribute('data-bs-theme', 'dark');
+        toggle.innerHTML = '<i class="bi bi-sun-fill fs-5"></i>';
+    }
+    toggle.addEventListener('click', () => {
+        if (body.getAttribute('data-bs-theme') === 'dark') {
+            body.removeAttribute('data-bs-theme');
+            localStorage.setItem('theme', 'light');
+            toggle.innerHTML = '<i class="bi bi-moon-fill fs-5"></i>';
+        } else {
+            body.setAttribute('data-bs-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+            toggle.innerHTML = '<i class="bi bi-sun-fill fs-5"></i>';
+        }
+    });
+
+    // Export to CSV Function
+    function exportTableToCSV(filename) {
+        var csv = [];
+        var rows = document.querySelectorAll("table tr");
+        
+        for (var i = 0; i < rows.length; i++) {
+            var row = [], cols = rows[i].querySelectorAll("td, th");
+            
+            // Skip the record-details and actions columns
+            for (var j = 0; j < cols.length - 2; j++) {
+                if (!cols[j].classList.contains('record-details') && !cols[j].classList.contains('sticky-right')) {
+                    row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+                }
+            }
+            if (row.length > 0) csv.push(row.join(","));
+        }
+        
+        var csvFile = new Blob([csv.join("\n")], {type: "text/csv"});
+        var downloadLink = document.createElement("a");
+        downloadLink.download = filename;
+        downloadLink.href = window.URL.createObjectURL(csvFile);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+    }
+</script>
+<style>
+    @media print {
+        .navbar, .btn, .card-header, .sticky-right, #recordDetailDrawer { display: none !important; }
+        .table-responsive { overflow: visible !important; }
+        body { background: white !important; color: black !important; }
+    }
+</style>
+
+</body>
+</html>

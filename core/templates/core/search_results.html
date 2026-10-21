@@ -1,0 +1,89 @@
+﻿{% extends 'base.html' %}
+{% block title %}Search Results | RE Manager{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <h2 class="mb-4">Search Results for "{{ query }}"</h2>
+    
+    {% if not results.contacts and not results.deals and not results.sites and not results.projects %}
+        <div class="alert alert-warning">No results found across any module.</div>
+    {% endif %}
+
+    <div class="row g-4">
+        {% if results.contacts %}
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white fw-bold"><i class="bi bi-people text-primary me-2"></i>Contacts</div>
+                <div class="list-group list-group-flush">
+                    {% for c in results.contacts %}
+                    <a href="{% url 'contact_update' c.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">{{ c.name }}</div>
+                            <small class="text-muted">{{ c.mobile }}</small>
+                        </div>
+                        <span class="badge bg-secondary rounded-pill">{{ c.contact_type }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if results.deals %}
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white fw-bold"><i class="bi bi-briefcase text-info me-2"></i>Deals</div>
+                <div class="list-group list-group-flush">
+                    {% for d in results.deals %}
+                    <a href="{% url 'deal_update' d.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">{{ d.deal_name }}</div>
+                            <small class="text-muted">{{ d.location }}</small>
+                        </div>
+                        <span class="badge bg-info text-dark rounded-pill">{{ d.status }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if results.sites %}
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white fw-bold"><i class="bi bi-map text-success me-2"></i>Sites</div>
+                <div class="list-group list-group-flush">
+                    {% for s in results.sites %}
+                    <a href="{% url 'site_update' s.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">Site {{ s.site_number }}</div>
+                            <small class="text-muted">₹{{ s.price }}</small>
+                        </div>
+                        <span class="badge bg-success rounded-pill">{{ s.status }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if results.projects %}
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white fw-bold"><i class="bi bi-building text-primary me-2"></i>Projects</div>
+                <div class="list-group list-group-flush">
+                    {% for p in results.projects %}
+                    <a href="{% url 'project_update' p.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">{{ p.project_name }}</div>
+                            <small class="text-muted">{{ p.location }}</small>
+                        </div>
+                        <span class="badge bg-primary rounded-pill">{{ p.status }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
