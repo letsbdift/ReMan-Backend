@@ -138,13 +138,22 @@ def dashboard(request):
 
     
     recent_activities = recent_activities[:8]
-    # --- NET PROFIT CALCULATION ---
-    total_received_all = total_received_qs.aggregate(total=Coalesce(Sum('amount'), Decimal('0.00')))['total']
-    total_paid_all = total_paid_qs.aggregate(total=Coalesce(Sum('amount'), Decimal('0.00')))['total']
-    pending_payables = base_expenses.exclude(status__iexact='Paid').aggregate(total=Coalesce(Sum('amount'), Decimal('0.00')))['total']
+    # --- ACCURATE FINANCIAL CALCULATIONS ---
+    # Total Revenue = Sum of all 'Received' site sale payments and receivables
+    total_revenue = total_received_qs.aggregate(total=Coalesce(Sum('amount'), Decimal('0.00')))['total']
     
-    # Calculate global net profit
-    calculated_net_profit = total_received_all - total_paid_all
+    # Total Expenses = Sum of all paid project/development/advance expenses + paid shared expenses
+    paid_expenses = base_expenses.filter(status__iexact='Paid').aggregate(total=Coalesce(Sum('amount'), Decimal('0.00')))['total']
+    shared_qs = SharedExpense.objects.all()
+    if selected_project:
+        shared_qs = shared_qs.filter(purpose__project=selected_project)
+    paid_shared_expenses = shared_qs.aggregate(total=Coalesce(Sum('total_amount'), Decimal('0.00')))['total']
+    total_expenses = paid_expenses + paid_shared_expenses
+    total_expenses_all = total_expenses
+    
+    # Net Profit = Total Revenue - Total Expenses
+    calculated_net_profit = total_revenue - total_expenses
+    pending_payables = base_expenses.exclude(status__iexact='Paid').aggregate(total=Coalesce(Sum('amount'), Decimal('0.00')))['total']
     
     # --- PARTNER FINANCIAL ANALYTICS ---
     all_partners = Contact.objects.filter(contact_type='Partner').order_by('name')
@@ -232,7 +241,6 @@ def dashboard(request):
     partner_received_values = [float(s['received']) for s in partner_stats]
     partner_profit_values = [float(max(s.get('profit_share', 0), 0)) for s in partner_stats]
 
-    total_expenses_all = pending_payables
     context = {
         'all_projects': all_projects,
         'selected_project': selected_project,

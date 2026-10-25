@@ -30,6 +30,7 @@ Thumbs.db
 # Root level scratch and deployment scripts
 /*.py
 !manage.py
+!populate_dummy_data.py
 
 # Root temporary files
 /*.html

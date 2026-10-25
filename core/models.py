@@ -361,6 +361,76 @@ def log_deal(sender, instance, created, **kwargs):
     action = "Created" if created else "Updated"
     Activity.objects.create(activity_type="Other", related_to="Land Deal", note=f"{action} land deal: {instance.deal_name}")
 
+# Automation: Auto-instantiate and link a new Project when Land Deal status is 'Deal Closed' or 'Closed'
+@receiver(post_save, sender=LandDeal)
+def handle_closed_land_deal(sender, instance, created, **kwargs):
+    is_closed = instance.status in ['Deal Closed', 'Closed']
+    if is_closed and not instance.project:
+        cost = instance.negotiated_price or instance.expected_price or Decimal('0.00')
+        existing_proj = Project.objects.filter(project_name__iexact=instance.deal_name).first()
+        if not existing_proj:
+            existing_proj = Project.objects.create(
+                project_name=instance.deal_name,
+                location=instance.location or "Site Location",
+                landowner=instance.landowner,
+                survey_number=instance.survey_number,
+                land_area=instance.land_area or "N/A",
+                purchase_cost=cost,
+                status='Planning',
+                notes=f"Auto-created from closed deal: {instance.deal_name}. {instance.notes or ''}".strip()
+            )
+            Activity.objects.create(
+                activity_type="Project",
+                related_to=existing_proj.project_name,
+                note=f"Auto-instantiated project '{existing_proj.project_name}' from closed deal"
+            )
+        LandDeal.objects.filter(pk=instance.pk, project__isnull=True).update(project=existing_proj)
+
+# Automation: Auto-trigger linked Deal/Contact entry when Lead is Converted or Closed
+@receiver(post_save, sender=Lead)
+def handle_converted_lead(sender, instance, created, **kwargs):
+    is_converted = instance.status in ['Converted', 'Closed']
+    if is_converted:
+        contact = None
+        if instance.phone:
+            contact = Contact.objects.filter(mobile=instance.phone).first()
+        if not contact and instance.name:
+            contact = Contact.objects.filter(name__iexact=instance.name).first()
+            
+        if not contact:
+            contact = Contact.objects.create(
+                name=instance.name,
+                mobile=instance.phone,
+                location=instance.location or "",
+                contact_type="Customer",
+                project=instance.project,
+                notes=f"Auto-created from converted lead. Source: {instance.source or 'Lead'}. {instance.notes or ''}".strip()
+            )
+            Activity.objects.create(
+                activity_type="Contact",
+                related_to=contact.name,
+                note=f"Auto-created contact '{contact.name}' from converted lead"
+            )
+
+        deal_title = f"Deal - {instance.name}"
+        existing_deal = LandDeal.objects.filter(deal_name__iexact=deal_title).first()
+        if not existing_deal:
+            new_deal = LandDeal.objects.create(
+                deal_name=deal_title,
+                project=instance.project,
+                landowner=contact,
+                location=instance.location or (instance.project.location if instance.project else "Local"),
+                land_area="N/A",
+                expected_price=Decimal('0.00'),
+                status='Discussion',
+                notes=f"Auto-created deal entry from converted lead: {instance.name}. {instance.notes or ''}".strip()
+            )
+            Activity.objects.create(
+                activity_type="Land Deal",
+                related_to=new_deal.deal_name,
+                note=f"Auto-created deal '{new_deal.deal_name}' in pipeline for converted lead"
+            )
+
 from django.db.models.signals import post_delete
 
 @receiver(post_delete, sender=SharedExpense)
@@ -393,16 +463,18 @@ def create_transaction_on_paid(sender, instance, created, **kwargs):
         is_newly_paid = True
         
     if is_newly_paid:
-        Transaction.objects.create(
-            project=instance.project,
-            date=instance.date,
-            amount=instance.amount,
-            transaction_type='Paid',
-            payment_type='Other',
-            payment_type_other_reason=f"Expense: {instance.category.name if instance.category else 'Uncategorized'} - {instance.description}",
-            paid_by=instance.paid_by,
-            notes=instance.notes
-        )
+        reason = f"Expense: {instance.category.name if instance.category else 'Uncategorized'} - {instance.description}"
+        if not Transaction.objects.filter(project=instance.project, amount=instance.amount, date=instance.date, transaction_type='Paid', payment_type_other_reason=reason).exists():
+            Transaction.objects.create(
+                project=instance.project,
+                date=instance.date,
+                amount=instance.amount,
+                transaction_type='Paid',
+                payment_type='Other',
+                payment_type_other_reason=reason,
+                paid_by=instance.paid_by,
+                notes=instance.notes
+            )
 
 
 class UnearnedRevenue(models.Model):
