@@ -15,6 +15,7 @@
             <input type="hidden" name="status" value="{{ selected_status }}">
             {% endif %}
         </form>
+        <a href="{% url 'site_payment_list' %}" class="btn btn-outline-primary rounded-pill px-3"><i class="bi bi-wallet2"></i> Site Payments</a>
         <button type="button" class="btn btn-outline-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#importModal"><i class="bi bi-file-earmark-excel"></i> Import</button>
         <a href="{% url 'site_create' %}?project_id={{ selected_project_id }}" class="btn btn-primary rounded-pill px-4">Add Site</a>
     </div>
@@ -86,7 +87,8 @@
     <table class="table table-hover align-middle mb-0 text-nowrap">
         <thead class="table-light sticky-top" style="z-index: 2;">
             <tr>
-                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Site No.</th>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Date</th>
+                <th scope="col">Site No.</th>
                 <th scope="col">Status</th>
                 <th scope="col">Area</th>
                 <th scope="col">Customer</th>
@@ -97,7 +99,8 @@
         <tbody>
             {% for s in sites %}
             <tr class="clickable-row bg-white" style="cursor: pointer;">
-                <td class="sticky-left fw-bold text-primary bg-white" style="left: 0;">{{ s.site_number }}</td>
+                <td class="sticky-left fw-bold bg-white" style="left: 0;">{{ s.date|date:"d/m/Y" }}</td>
+                <td class="fw-bold text-primary">{{ s.site_number }}</td>
                 <td><span class="badge {% if s.status == 'Available' %}bg-success{% elif s.status == 'Booked' %}bg-warning text-dark{% elif s.status == 'Sold' %}bg-secondary{% else %}bg-danger{% endif %}">{{ s.status }}</span></td>
                 <td>{{ s.area|default:"-" }}</td>
                 <td><div class="text-truncate" style="max-width: 120px;" title="{{ s.customer|default:'' }}">{{ s.customer|default:"-" }}</div></td>
@@ -109,6 +112,7 @@
                 </td>
                 
                 <td class="d-none record-details">
+                    <div data-label="Date">{{ s.date|date:"d/m/Y" }}</div>
                     <div data-label="Site No.">{{ s.site_number|default:"-" }}</div>
                     <div data-label="Project">{{ s.project.project_name|default:"-" }}</div>
                     <div data-label="Status"><span class="badge {% if s.status == 'Available' %}bg-success{% elif s.status == 'Booked' %}bg-warning text-dark{% elif s.status == 'Sold' %}bg-secondary{% else %}bg-danger{% endif %}">{{ s.status }}</span></div>
@@ -128,6 +132,9 @@
                         <a href="{% url 'site_update' s.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-pencil-square me-1"></i> Edit</a>
                         <a href="{% url 'site_delete' s.pk %}" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="event.stopPropagation();"><i class="bi bi-trash me-1"></i> Delete</a>
                     </div>
+                    {% if s.status != 'Sold' %}
+                    <a href="{% url 'site_payment_create_for_site' s.pk %}" class="btn btn-sm btn-light text-success border me-1" title="Record Payment" onclick="event.stopPropagation();"><i class="bi bi-cash"></i></a>
+                    {% endif %}
                     <a href="{% url 'site_update' s.pk %}" class="btn btn-sm btn-light text-primary border" onclick="event.stopPropagation();"><i class="bi bi-pencil-square"></i></a>
                     <a href="{% url 'site_delete' s.pk %}" class="btn btn-sm btn-light text-danger border ms-1" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></a>
                 </td>

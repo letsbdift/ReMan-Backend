@@ -16,7 +16,7 @@ class FinancialAnalyticsTest(TestCase):
         # A invests 450,000 (Transaction)
         Transaction.objects.create(project=self.proj, paid_by="Partner A", amount=Decimal('450000'), transaction_type="Paid", payment_type="Other")
         # B invests 300,000 (Expense)
-        Expense.objects.create(project=self.proj, paid_by="Partner B", amount=Decimal('300000'), category=self.cat, description="Land")
+        Expense.objects.create(project=self.proj, paid_by="Partner B", amount=Decimal('300000'), category='VENDOR_PAYMENT', description="Land", status='To Be Paid')
         # C invests 150,000 (Transaction)
         Transaction.objects.create(project=self.proj, paid_by="Partner C", amount=Decimal('150000'), transaction_type="Paid", payment_type="Other")
         

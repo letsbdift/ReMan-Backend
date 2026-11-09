@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Site Payments | RE Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-4 border-bottom flex-wrap gap-2">
+    <div>
+        <h1 class="h2 mb-1">Site Payments (Partial / Installments)</h1>
+        <small class="text-muted">Track site purchase payments, partial installments, and revenue</small>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <form method="GET" class="d-flex gap-2 align-items-center m-0">
+            <select name="site_id" class="form-select border-primary" onchange="this.form.submit()">
+                <option value="all">All Sites</option>
+                {% for s in all_sites %}
+                <option value="{{ s.id }}" {% if s.id|stringformat:"s" == selected_site_id %}selected{% endif %}>Site {{ s.site_number }} ({{ s.project.project_name }})</option>
+                {% endfor %}
+            </select>
+        </form>
+        <a href="{% url 'site_payment_create' %}" class="btn btn-primary rounded-pill px-4"><i class="bi bi-plus-circle me-1"></i> Record Payment</a>
+        <a href="{% url 'site_list' %}" class="btn btn-outline-secondary rounded-pill px-3"><i class="bi bi-arrow-left"></i> Sites</a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm bg-primary text-white">
+            <div class="card-body p-3">
+                <span class="small text-white-50 d-block">Grand Total Collected</span>
+                <h3 class="fw-bold mb-0">₹{{ grand_total|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">
+    <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+            <tr>
+                <th scope="col" class="sticky-left" style="background: #f8f9fa; left: 0; z-index: 3;">Date</th>
+                <th scope="col">Site</th>
+                <th scope="col">Project</th>
+                <th scope="col">Customer / Paid By</th>
+                <th scope="col">Payment Method</th>
+                <th scope="col" class="text-end">Amount</th>
+                <th scope="col">Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in payments %}
+            <tr class="bg-white">
+                <td class="sticky-left fw-bold bg-white" style="left: 0;">{{ item.date|date:"d/m/Y" }}</td>
+                <td><span class="badge bg-primary">Site {{ item.site.site_number }}</span></td>
+                <td>{{ item.site.project.project_name }}</td>
+                <td>{{ item.customer.name|default:item.paid_by|default:"-" }}</td>
+                <td><span class="badge bg-secondary">{{ item.payment_method|default:"UPI" }}</span></td>
+                <td class="text-end text-success fw-bold">₹{{ item.amount|floatformat:2 }}</td>
+                <td><small class="text-muted">{{ item.notes|default:"-" }}</small></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center p-5 text-muted">No site payments recorded yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

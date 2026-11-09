@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from .models import (
     Site, 
     Contact, Lead, LandDeal, FollowUp, Activity, 
-    Transaction, Expense, SharedPurpose, SharedExpense, Settlement
+    Transaction, Expense, SharedPurpose, SharedExpense, Settlement, SitePayment, PartnerCapitalLedger, EXPENSE_CATEGORIES
 )
 from django.db.models import Sum
 from datetime import date, timedelta
@@ -34,7 +34,7 @@ def dashboard(request):
         sold_units=Count('sites', filter=Q(sites__status='Sold'))
     ).all()
     
-    recent_transactions = Transaction.objects.all().order_by('-date', '-id')
+    recent_transactions = Transaction.objects.all().order_by('-transaction_date', '-created_at')
     total_received_qs = Transaction.objects.filter(transaction_type='Received')
     total_paid_qs = Transaction.objects.filter(transaction_type='Paid')
     
@@ -231,8 +231,9 @@ def dashboard(request):
         if c['amount'] <= Decimal('0.01'): j += 1
         
     # Category totals (Django ORM)
-    category_totals = list(base_expenses.exclude(status__iexact='Paid').values('category__name').annotate(total=Coalesce(Sum('amount'), Decimal('0.00'))).order_by('-total'))
-    category_labels = [c['category__name'] or 'Uncategorized' for c in category_totals]
+    category_totals = list(base_expenses.exclude(status__iexact='Paid').values('category').annotate(total=Coalesce(Sum('amount'), Decimal('0.00'))).order_by('-total'))
+    cat_dict = dict(EXPENSE_CATEGORIES)
+    category_labels = [cat_dict.get(c['category'], c['category']) or 'Other' for c in category_totals]
     category_values = [float(c['total']) for c in category_totals]
     
     # Partner Chart Data
@@ -344,16 +345,16 @@ def deal_list(request):
 def expense_list(request):
     project_id = request.GET.get('project_id', 'all')
     paid_by_name = request.GET.get('paid_by_name', 'all')
-    category_id = request.GET.get('category_id', 'all')
+    category = request.GET.get('category') or request.GET.get('category_id', 'all')
     
-    expenses = Expense.objects.all().order_by('-date', '-id')
+    expenses = Expense.objects.all().order_by('-expense_date', '-id')
     
     if project_id and project_id != 'all':
         expenses = expenses.filter(project_id=project_id)
     if paid_by_name and paid_by_name != 'all':
         expenses = expenses.filter(paid_by__icontains=paid_by_name)
-    if category_id and category_id != 'all':
-        expenses = expenses.filter(category_id=category_id)
+    if category and category != 'all':
+        expenses = expenses.filter(category=category)
         
     from django.db.models import Sum
     from decimal import Decimal
@@ -361,8 +362,7 @@ def expense_list(request):
         
     all_projects = Project.objects.all().order_by('-id')
     all_partners = Contact.objects.filter(contact_type='Partner').order_by('name')
-    from .models import ExpenseCategory
-    all_categories = ExpenseCategory.objects.all()
+    all_categories = EXPENSE_CATEGORIES
     
     return render(request, 'core/expense_list.html', {
         'expenses': expenses, 
@@ -371,7 +371,8 @@ def expense_list(request):
         'all_partners': all_partners,
         'selected_project_id': str(project_id),
         'selected_paid_by_name': paid_by_name,
-        'selected_category_id': str(category_id),
+        'selected_category': str(category),
+        'selected_category_id': str(category),
         'grand_total': grand_total
     })
 
@@ -469,7 +470,7 @@ class TransactionList(ListView):
     context_object_name = 'transactions'
 
     def get_queryset(self):
-        qs = Transaction.objects.all().order_by('-date', '-id')
+        qs = Transaction.objects.all().order_by('-transaction_date', '-created_at')
         project_id = self.request.GET.get('project_id', 'all')
         transaction_type = self.request.GET.get('transaction_type', 'all')
         partner_name = self.request.GET.get('partner_name', 'all')
@@ -631,6 +632,11 @@ class SettlementCreate(BaseCRUDView, CreateView):
 from django.views.generic.detail import DetailView
 
 
+class SharedPurposeUpdate(BaseCRUDView, UpdateView):
+    model = SharedPurpose
+    form_class = SharedPurposeForm
+    success_url = reverse_lazy('shared_expense_list')
+
 class SharedPurposeDelete(DeleteView):
     model = SharedPurpose
     template_name = 'core/generic_confirm_delete.html'
@@ -696,7 +702,7 @@ class SiteList(ProjectFilteredListView):
     context_object_name = 'sites'
     
     def get_queryset(self):
-        qs = super().get_queryset().order_by("-id")
+        qs = super().get_queryset().order_by("-added_date", "site_number")
         status = self.request.GET.get('status', 'All')
         if status != 'All':
             qs = qs.filter(status=status)
@@ -705,21 +711,8 @@ class SiteList(ProjectFilteredListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['selected_status'] = self.request.GET.get('status', 'All')
+        ctx['recent_site_payments'] = SitePayment.objects.all().order_by('-payment_date', '-id')[:10]
         return ctx
-    context_object_name = 'sites'
-    
-    def get_queryset(self):
-        qs = super().get_queryset().order_by("-id")
-        status = self.request.GET.get('status', 'All')
-        if status != 'All':
-            qs = qs.filter(status=status)
-        return qs
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['selected_status'] = self.request.GET.get('status', 'All')
-        return ctx
-    context_object_name = 'sites'
 
 class SiteCreate(BaseCRUDView, CreateView):
     model = Site
@@ -727,11 +720,86 @@ class SiteCreate(BaseCRUDView, CreateView):
     form_class = SiteForm
     success_url = reverse_lazy('site_list')
 
+    def form_valid(self, form):
+        site = form.save(commit=False)
+        from datetime import date
+        today = date.today()
+        if site.status == 'Booked' and not site.booking_date:
+            site.booking_date = today
+        elif site.status == 'Sold' and not site.sold_date:
+            site.sold_date = today
+            if not site.booking_date:
+                site.booking_date = today
+        site.save()
+        return super().form_valid(form)
+
 class SiteUpdate(BaseCRUDView, UpdateView):
     model = Site
     template_name = 'core/site_form.html'
     form_class = SiteForm
     success_url = reverse_lazy('site_list')
+
+    def form_valid(self, form):
+        site = form.save(commit=False)
+        from datetime import date
+        today = date.today()
+        if site.status == 'Booked' and not site.booking_date:
+            site.booking_date = today
+        elif site.status == 'Sold' and not site.sold_date:
+            site.sold_date = today
+            if not site.booking_date:
+                site.booking_date = today
+        site.save()
+        return super().form_valid(form)
+
+class SitePaymentCreate(BaseCRUDView, CreateView):
+    model = SitePayment
+    template_name = 'core/site_payment_form.html'
+    form_class = SitePaymentForm
+    success_url = reverse_lazy('site_list')
+
+    def get_initial(self):
+        initial = super().get_initial()
+        site_id = self.kwargs.get('site_id') or self.request.GET.get('site_id')
+        if site_id:
+            site = Site.objects.filter(pk=site_id).first()
+            if site:
+                initial['site'] = site
+                if site.customer:
+                    initial['customer'] = site.customer
+                    initial['paid_by'] = site.customer.name
+                if site.balance:
+                    initial['amount'] = site.balance
+        return initial
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        site_id = self.kwargs.get('site_id') or self.request.GET.get('site_id')
+        if site_id:
+            ctx['site_obj'] = Site.objects.filter(pk=site_id).first()
+        return ctx
+
+class SitePaymentList(ListView):
+    model = SitePayment
+    template_name = 'core/site_payment_list.html'
+    context_object_name = 'payments'
+
+    def get_queryset(self):
+        qs = SitePayment.objects.all().order_by('-payment_date', '-id')
+        site_id = self.request.GET.get('site_id')
+        if site_id and site_id != 'all':
+            qs = qs.filter(site_id=site_id)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        from django.db.models import Sum
+        from decimal import Decimal
+        qs = self.get_queryset()
+        ctx['grand_total'] = qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        ctx['all_sites'] = Site.objects.all().order_by('site_number')
+        ctx['selected_site_id'] = self.request.GET.get('site_id', 'all')
+        return ctx
 
 from django.urls import reverse_lazy
 

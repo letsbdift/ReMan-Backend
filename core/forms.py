@@ -1,9 +1,11 @@
 from django import forms
+from datetime import date
 from .models import *
 
 class StyledModelForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        today = date.today()
         for field_name, field in self.fields.items():
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs['class'] = 'form-check-input'
@@ -15,6 +17,9 @@ class StyledModelForm(forms.ModelForm):
                     field.widget = forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'})
                 elif isinstance(field, forms.DateField):
                     field.widget = forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+                    if not self.initial.get(field_name):
+                        if not self.instance or not self.instance.pk:
+                            self.initial[field_name] = today
 
 class ContactForm(StyledModelForm):
     class Meta:
@@ -51,6 +56,8 @@ class TransactionForm(StyledModelForm):
         model = Transaction
         exclude = ['received_by']
         labels = {
+            'transaction_date': 'Transaction Date',
+            'date': 'Transaction Date',
             'payment_type': 'Transaction purpose',
             'payment_method': 'Transaction method',
             'project_or_deal': 'Project or Deal',
@@ -60,10 +67,17 @@ class TransactionForm(StyledModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        today = date.today()
         self.fields['payment_type'].required = True
         if 'contact' in self.fields:
             self.fields['contact'].required = False
             self.fields['contact'].empty_label = "---------"
+        
+        for f in ['transaction_date', 'date']:
+            if f in self.fields:
+                self.fields[f].widget = forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+                if not self.initial.get(f) and (not self.instance or not self.instance.pk):
+                    self.initial[f] = today
         
         partners = Contact.objects.filter(contact_type='Partner')
         choices = [('', '---------'), ('Company funds', 'Company funds')]
@@ -75,6 +89,13 @@ class TransactionForm(StyledModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        tx_date = cleaned_data.get('transaction_date') or cleaned_data.get('date')
+        if tx_date:
+            cleaned_data['transaction_date'] = tx_date
+            cleaned_data['date'] = tx_date
+            self.instance.transaction_date = tx_date
+            self.instance.date = tx_date
+            
         ttype = cleaned_data.get('transaction_type')
         ptype = cleaned_data.get('payment_type')
         paid_by = cleaned_data.get('paid_by')
@@ -91,17 +112,48 @@ class ExpenseForm(StyledModelForm):
     class Meta:
         model = Expense
         fields = '__all__'
+        labels = {
+            'expense_date': 'Expense Date',
+            'date': 'Expense Date',
+            'category': 'Expense Category',
+            'paid_by': 'Paid By (Partner)'
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        today = date.today()
         self.fields['payment_method'].required = True
         
+        for f in ['expense_date', 'date']:
+            if f in self.fields:
+                self.fields[f].widget = forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+                if not self.initial.get(f) and (not self.instance or not self.instance.pk):
+                    self.initial[f] = today
+        
+        if 'category' in self.fields:
+            self.fields['category'] = forms.ChoiceField(
+                choices=EXPENSE_CATEGORIES,
+                widget=forms.Select(attrs={'class': 'form-select'}),
+                label='Expense Category',
+                initial='OTHER'
+            )
+
         partners = Contact.objects.filter(contact_type='Partner')
         choices = [('', '---------'), ('Company funds', 'Company funds')]
         for p in partners:
             choices.append((p.name, p.name))
-        self.fields['paid_by'] = forms.ChoiceField(choices=choices, required=False)
+        self.fields['paid_by'] = forms.ChoiceField(choices=choices, required=False, label="Paid By (Partner)")
         self.fields['paid_by'].widget.attrs.update({'class': 'form-select'})
+
+    def clean(self):
+        cleaned_data = super().clean()
+        exp_date = cleaned_data.get('expense_date') or cleaned_data.get('date')
+        if exp_date:
+            cleaned_data['expense_date'] = exp_date
+            cleaned_data['date'] = exp_date
+            self.instance.expense_date = exp_date
+            self.instance.date = exp_date
+        return cleaned_data
 
 class DocumentForm(StyledModelForm):
     class Meta:
@@ -166,11 +218,9 @@ class SharedExpenseForm(StyledModelForm):
             is_known_purpose = True
             
         if is_known_purpose:
-            # Delete fields that are absolutely not needed
             for field in ['new_group_name', 'expense_participants', 'new_expense_participants', 'new_payer', 'custom_splits']:
                 if field in self.fields: del self.fields[field]
                 
-            # Hide fields that have defaults, so the UI is hyper-minimal
             for hidden_field in ['purpose', 'description', 'split_method', 'date']:
                 if hidden_field in self.fields:
                     self.fields[hidden_field].widget = forms.HiddenInput()
@@ -187,7 +237,7 @@ class SharedExpenseForm(StyledModelForm):
         paid_by = cleaned_data.get('paid_by')
         new_payer = cleaned_data.get('new_payer')
         
-        is_known = 'new_group_name' not in self.fields # Form is slim
+        is_known = 'new_group_name' not in self.fields
         if not is_known and not purpose and not new_group_name:
             raise forms.ValidationError("You must either select an existing Expense Title or create a new one.")
             
@@ -264,9 +314,101 @@ class SharedPurposeForm(StyledModelForm):
 class SettlementForm(StyledModelForm):
     class Meta:
         model = Settlement
-        fields = ['from_person', 'to_person', 'amount', 'date', 'payment_method']
+        fields = ['from_person', 'to_person', 'amount', 'date', 'entry_date', 'payment_method']
+        labels = {
+            'entry_date': 'Settlement Date',
+            'date': 'Settlement Date'
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        today = date.today()
+        for f in ['entry_date', 'date']:
+            if f in self.fields:
+                self.fields[f].widget = forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+                if not self.initial.get(f) and (not self.instance or not getattr(self.instance, f, None)):
+                    self.initial[f] = today
 
 class SiteForm(StyledModelForm):
     class Meta:
         model = Site
         fields = '__all__'
+        labels = {
+            'added_date': 'Added Date',
+            'booking_date': 'Booking Date',
+            'sold_date': 'Sold Date'
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        today = date.today()
+        for f in ['added_date', 'booking_date', 'sold_date']:
+            if f in self.fields:
+                self.fields[f].widget = forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+                if f == 'added_date' and not self.initial.get('added_date') and (not self.instance or not self.instance.added_date):
+                    self.initial['added_date'] = today
+
+    def clean(self):
+        cleaned_data = super().clean()
+        status = cleaned_data.get('status')
+        today = date.today()
+        if status == 'Booked' and not cleaned_data.get('booking_date'):
+            cleaned_data['booking_date'] = today
+            self.instance.booking_date = today
+        elif status == 'Sold' and not cleaned_data.get('sold_date'):
+            cleaned_data['sold_date'] = today
+            self.instance.sold_date = today
+            if not cleaned_data.get('booking_date'):
+                cleaned_data['booking_date'] = today
+                self.instance.booking_date = today
+        return cleaned_data
+
+class SitePaymentForm(StyledModelForm):
+    class Meta:
+        model = SitePayment
+        fields = ['site', 'amount', 'payment_date', 'customer', 'paid_by', 'payment_method', 'notes']
+        labels = {
+            'payment_date': 'Payment Date',
+            'payment_method': 'Payment Method',
+            'paid_by': 'Paid By (Name)',
+            'amount': 'Payment Amount (₹)'
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        today = date.today()
+        if 'payment_date' in self.fields:
+            self.fields['payment_date'].widget = forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+            if not self.initial.get('payment_date') and (not self.instance or not self.instance.payment_date):
+                self.initial['payment_date'] = today
+        if 'payment_method' in self.fields:
+            self.fields['payment_method'].widget.attrs.update({'class': 'form-select'})
+        if 'site' in self.fields:
+            self.fields['site'].widget.attrs.update({'class': 'form-select'})
+        if 'customer' in self.fields:
+            self.fields['customer'].widget.attrs.update({'class': 'form-select'})
+
+class PartnerCapitalLedgerForm(StyledModelForm):
+    class Meta:
+        model = PartnerCapitalLedger
+        fields = ['partner', 'project', 'entry_type', 'amount', 'entry_date', 'notes']
+        labels = {
+            'entry_date': 'Entry Date',
+            'entry_type': 'Entry Type',
+            'amount': 'Amount (₹)'
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        today = date.today()
+        if 'entry_date' in self.fields:
+            self.fields['entry_date'].widget = forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+            if not self.initial.get('entry_date') and (not self.instance or not self.instance.entry_date):
+                self.initial['entry_date'] = today
+        if 'partner' in self.fields:
+            self.fields['partner'].queryset = Contact.objects.filter(contact_type='Partner')
+            self.fields['partner'].widget.attrs.update({'class': 'form-select'})
+        if 'entry_type' in self.fields:
+            self.fields['entry_type'].widget.attrs.update({'class': 'form-select'})
+        if 'project' in self.fields:
+            self.fields['project'].widget.attrs.update({'class': 'form-select'})

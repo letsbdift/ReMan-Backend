@@ -1,7 +1,7 @@
 
 from django.test import TestCase, Client
 from django.urls import reverse
-from core.models import Project, Contact, Document, SharedPurpose, SharedExpense, ExpenseSplit, Payment
+from core.models import Project, Contact, Document, SharedPurpose, SharedExpense, ExpenseSplit, Transaction
 from decimal import Decimal
 
 class EndToEndTests(TestCase):

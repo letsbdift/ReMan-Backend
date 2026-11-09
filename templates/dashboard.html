@@ -280,7 +280,7 @@
                         <tbody>
                             {% for t in recent_transactions|slice:":5" %}
                             <tr>
-                                <td>{{ t.date|date:"d M Y" }}</td>
+                                <td>{{ t.date|date:"d/m/Y" }}</td>
                                 <td><span class="badge {% if t.transaction_type == 'Received' %}bg-success{% else %}bg-danger{% endif %}">{{ t.transaction_type }}</span></td>
                                 <td>{{ t.paid_by|default:"-" }}</td>
                                 <td class="fw-bold">₹{{ t.amount|floatformat:2 }}</td>

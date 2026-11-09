@@ -18,10 +18,10 @@
         </select>
     </div>
     <div class="col-auto">
-        <select name="category_id" class="form-select">
+        <select name="category" class="form-select">
             <option value="all">All Categories</option>
-            {% for c in all_categories %}
-            <option value="{{ c.id }}" {% if c.id|stringformat:"s" == selected_category_id %}selected{% endif %}>{{ c.name }}</option>
+            {% for code, label in all_categories %}
+            <option value="{{ code }}" {% if code == selected_category or code == selected_category_id %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
     </div>
@@ -63,9 +63,9 @@
         <tbody>
             {% for e in expenses %}
             <tr class="clickable-row bg-white" style="cursor: pointer;">
-                <td class="sticky-left fw-bold bg-white" style="left: 0;">{{ e.date|date:"Y-m-d" }}</td>
+                <td class="sticky-left fw-bold bg-white" style="left: 0;">{{ e.date|date:"d/m/Y" }}</td>
                 <td><div class="text-truncate" style="max-width: 150px;" title="{{ e.description }}">{{ e.description }}</div></td>
-                <td><span class="badge bg-secondary">{{ e.category|default:"-" }}</span></td>
+                <td><span class="badge bg-secondary">{{ e.get_category_display|default:e.category|default:"-" }}</span></td>
                 <td><div class="text-truncate" style="max-width: 100px;" title="{{ e.paid_to|default:'' }}">{{ e.paid_to|default:"-" }}</div></td>
                 <td><div class="text-truncate" style="max-width: 100px;" title="{{ e.paid_by|default:'' }}">{{ e.paid_by|default:"-" }}</div></td>
                 <td class="text-end text-danger fw-bold">₹{{ e.amount }}</td>
@@ -76,9 +76,9 @@
                 
                 <td class="d-none record-details">
                     <div data-label="Project">{{ e.project.project_name|default:"-" }}</div>
-                    <div data-label="Date">{{ e.date|date:"Y-m-d" }}</div>
+                    <div data-label="Date">{{ e.date|date:"d/m/Y" }}</div>
                     <div data-label="Amount">₹{{ e.amount }}</div>
-                    <div data-label="Category"><span class="badge bg-secondary">{{ e.category|default:"-" }}</span></div>
+                    <div data-label="Category"><span class="badge bg-secondary">{{ e.get_category_display|default:e.category|default:"-" }}</span></div>
                     <div data-label="Project/Deal">{% if e.project %}{{ e.project.project_name }}{% elif e.project_or_deal %}{{ e.project_or_deal }}{% else %}-{% endif %}</div>
                     <div data-label="Paid To">{{ e.paid_to|default:"-" }}</div>
                     <div data-label="Description">{{ e.description }}</div>

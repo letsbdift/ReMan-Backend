@@ -12,6 +12,9 @@ urlpatterns = [
     path('sites/add/', views.SiteCreate.as_view(), name='site_create'),
     path('sites/<int:pk>/edit/', views.SiteUpdate.as_view(), name='site_update'),
     path('sites/<int:pk>/delete/', views.SiteDelete.as_view(), name='site_delete'),
+    path('site-payments/', views.SitePaymentList.as_view(), name='site_payment_list'),
+    path('site-payments/add/', views.SitePaymentCreate.as_view(), name='site_payment_create'),
+    path('sites/<int:site_id>/pay/', views.SitePaymentCreate.as_view(), name='site_payment_create_for_site'),
 
     path('', views.dashboard, name='dashboard'),
     path('search/', views.global_search, name='global_search'),
@@ -54,7 +57,10 @@ urlpatterns = [
     
     path('shared-expenses/', views.shared_expense_list, name='shared_expense_list'),
     path('shared-expenses/group/<int:pk>/', views.SharedPurposeDetailView.as_view(), name='sharedpurpose_detail'),
+    path('shared-expenses/group/<int:pk>/detail/', views.SharedPurposeDetailView.as_view(), name='shared_purpose_detail'),
+    path('shared-expenses/group/<int:pk>/edit/', views.SharedPurposeUpdate.as_view(), name='purpose_update'),
     path('shared-expenses/group/<int:pk>/delete/', views.SharedPurposeDelete.as_view(), name='sharedpurpose_delete'),
+    path('shared-expenses/group/<int:pk>/delete-purpose/', views.SharedPurposeDelete.as_view(), name='purpose_delete'),
     path('shared-expenses/settle/', views.SettlementCreate.as_view(), name='settlement_create'),
     
     

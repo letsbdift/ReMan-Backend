@@ -156,26 +156,59 @@ class Site(models.Model):
     customer = models.ForeignKey(Contact, on_delete=models.SET_NULL, null=True, blank=True)
     amount_received = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     balance = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    added_date = models.DateField(default=timezone.now)
+    booking_date = models.DateField(null=True, blank=True)
+    sold_date = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-added_date', 'site_number']
+
+    @property
+    def date(self):
+        if self.status == 'Sold' and self.sold_date:
+            return self.sold_date
+        if self.status == 'Booked' and self.booking_date:
+            return self.booking_date
+        return self.added_date
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         was_sold = False
+        was_booked = False
         if not is_new:
-            old = Site.objects.get(pk=self.pk)
-            was_sold = (old.status == 'Sold')
+            try:
+                old = Site.objects.get(pk=self.pk)
+                was_sold = (old.status == 'Sold')
+                was_booked = (old.status == 'Booked')
+            except Site.DoesNotExist:
+                pass
+
+        if self.status == 'Booked' and not self.booking_date:
+            self.booking_date = timezone.now().date()
+        elif self.status == 'Sold' and not self.sold_date:
+            self.sold_date = timezone.now().date()
+            if not self.booking_date:
+                self.booking_date = self.sold_date
 
         super().save(*args, **kwargs)
 
         if self.status == 'Sold' and not was_sold:
-            Transaction.objects.create(
+            sale_date = self.sold_date or timezone.now().date()
+            cust_name = self.customer.name if self.customer else "Customer"
+            Transaction.objects.get_or_create(
                 project=self.project,
-                contact=self.customer,
-                transaction_type='Received',
-                payment_type='Site Sale',
                 amount=self.price,
+                transaction_date=sale_date,
+                transaction_type='Received',
+                payment_type='Site Sold',
                 project_or_deal=f"Site {self.site_number}",
-                notes="Auto-generated receipt for sold site"
+                defaults={
+                    'date': sale_date,
+                    'contact': self.customer,
+                    'paid_by': cust_name,
+                    'notes': "Auto-generated receipt for sold site"
+                }
             )
 
     def __str__(self):
@@ -196,6 +229,7 @@ class Transaction(models.Model):
         ('Contract Payment', 'Contract Payment'), ('Vendor Payment', 'Vendor Payment'), 
         ('Refund', 'Refund'), ('Other', 'Other')
     ]
+    transaction_date = models.DateField(default=timezone.now)
     date = models.DateField(default=timezone.now)
     contact = models.ForeignKey(Contact, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Contact/Person")
     project_or_deal = models.CharField(max_length=255, blank=True, null=True)
@@ -204,17 +238,39 @@ class Transaction(models.Model):
     transaction_type = models.CharField(max_length=10, choices=[('Paid', 'Paid'), ('Received', 'Received')])
     received_by = models.CharField(max_length=150, blank=True, null=True)
     payment_type_other_reason = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=50, choices=[('Pending', 'Pending'), ('Completed', 'Completed')], default='Completed')
     attachments = models.FileField(upload_to='transactions/', blank=True, null=True)
     payment_method = models.CharField(max_length=100, choices=PAYMENT_METHODS, blank=True, null=True)
     paid_by = models.CharField(max_length=150, blank=True, null=True)
     reference = models.CharField(max_length=255, blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=[('To Be Paid', 'To Be Paid'), ('Paid', 'Paid')], default='Paid')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-transaction_date', '-created_at']
+
+    def save(self, *args, **kwargs):
+        if self.transaction_date and not self.date:
+            self.date = self.transaction_date
+        elif self.date and not self.transaction_date:
+            self.transaction_date = self.date
+        elif self.transaction_date:
+            self.date = self.transaction_date
+        super().save(*args, **kwargs)
 
     def __str__(self):
         contact_name = self.contact.name if self.contact else (self.paid_by or 'No Contact')
         return f"{self.transaction_type} {self.amount} - {contact_name}"
+
+EXPENSE_CATEGORIES = [
+    ('TRAVEL', 'Travel'),
+    ('FOOD', 'Food'),
+    ('TRAVEL_FOOD', 'Travel and Food'),
+    ('VENDOR_PAYMENT', 'Vendor Payment'),
+    ('PROCUREMENT', 'Procurement'),
+    ('LEGAL_DOCS', 'Legal / Documentation'),
+    ('OTHER', 'Other'),
+]
 
 class ExpenseCategory(models.Model):
     name = models.CharField(max_length=100)
@@ -226,9 +282,10 @@ class Expense(models.Model):
         ('NEFT', 'NEFT'), ('IMPS', 'IMPS'), ('RTGS', 'RTGS'), ('Quick Transfer', 'Quick Transfer')
     ]
     project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True, blank=True)
+    expense_date = models.DateField(default=timezone.now)
     date = models.DateField(default=timezone.now)
     amount = models.DecimalField(max_digits=15, decimal_places=2)
-    category = models.ForeignKey(ExpenseCategory, on_delete=models.SET_NULL, null=True)
+    category = models.CharField(max_length=50, choices=EXPENSE_CATEGORIES, default='OTHER')
     project_or_deal = models.CharField(max_length=255, blank=True, null=True)
     paid_to = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField()
@@ -238,8 +295,94 @@ class Expense(models.Model):
     notes = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=[('To Be Paid', 'To Be Paid'), ('Paid', 'Paid')], default='Paid')
 
+    class Meta:
+        ordering = ['-expense_date', '-id']
+
+    def save(self, *args, **kwargs):
+        if self.expense_date and not self.date:
+            self.date = self.expense_date
+        elif self.date and not self.expense_date:
+            self.expense_date = self.date
+        elif self.expense_date:
+            self.date = self.expense_date
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.amount} - {self.category}"
+        return f"{self.amount} - {self.get_category_display()}"
+
+class SitePayment(models.Model):
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='site_payments')
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    payment_date = models.DateField(default=timezone.now)
+    customer = models.ForeignKey(Contact, on_delete=models.SET_NULL, null=True, blank=True)
+    paid_by = models.CharField(max_length=150, blank=True, null=True)
+    payment_method = models.CharField(max_length=50, blank=True, null=True, default='UPI')
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-payment_date', '-id']
+
+    @property
+    def date(self):
+        return self.payment_date
+
+    def __str__(self):
+        return f"Payment ₹{self.amount} for Site {self.site.site_number} on {self.payment_date}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        total_paid = sum(p.amount for p in self.site.site_payments.all())
+        self.site.amount_received = total_paid
+        self.site.balance = max(Decimal('0.00'), self.site.price - total_paid)
+        if self.site.balance == Decimal('0.00') and self.site.price > Decimal('0.00'):
+            self.site.status = 'Sold'
+            if not self.site.sold_date:
+                self.site.sold_date = self.payment_date
+        elif self.site.status == 'Available' and total_paid > Decimal('0.00'):
+            self.site.status = 'Booked'
+            if not self.site.booking_date:
+                self.site.booking_date = self.payment_date
+        self.site.save()
+
+        cust_name = self.customer.name if self.customer else (self.paid_by or (self.site.customer.name if self.site.customer else 'Customer'))
+        Transaction.objects.get_or_create(
+            project=self.site.project,
+            amount=self.amount,
+            transaction_date=self.payment_date,
+            transaction_type='Received',
+            payment_type='Booking Installment',
+            project_or_deal=f"Site {self.site.site_number}",
+            defaults={
+                'date': self.payment_date,
+                'paid_by': cust_name,
+                'notes': f"Partial payment for Site {self.site.site_number}. {self.notes or ''}".strip(),
+                'payment_method': self.payment_method or 'UPI'
+            }
+        )
+
+class PartnerCapitalLedger(models.Model):
+    ENTRY_TYPES = [
+        ('CAPITAL_INFUSION', 'Capital Infusion'),
+        ('PROFIT_WITHDRAWAL', 'Profit Withdrawal'),
+    ]
+    partner = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='capital_entries')
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)
+    entry_type = models.CharField(max_length=30, choices=ENTRY_TYPES, default='CAPITAL_INFUSION')
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    entry_date = models.DateField(default=timezone.now)
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-entry_date', '-id']
+
+    @property
+    def date(self):
+        return self.entry_date
+
+    def __str__(self):
+        return f"{self.partner.name} - {self.entry_type} - ₹{self.amount}"
 
 # --- SPLITWISE-STYLE SHARED EXPENSES ---
 
@@ -309,9 +452,22 @@ class Settlement(models.Model):
     from_person = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='settlements_sent')
     to_person = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='settlements_received')
     amount = models.DecimalField(max_digits=15, decimal_places=2)
+    entry_date = models.DateField(default=timezone.now)
     date = models.DateField(default=timezone.now)
     payment_method = models.CharField(max_length=100, blank=True, null=True)
     note = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-entry_date', '-id']
+
+    def save(self, *args, **kwargs):
+        if self.entry_date and not self.date:
+            self.date = self.entry_date
+        elif self.date and not self.entry_date:
+            self.entry_date = self.date
+        elif self.entry_date:
+            self.date = self.entry_date
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.from_person} paid {self.to_person} {self.amount}"
@@ -463,11 +619,14 @@ def create_transaction_on_paid(sender, instance, created, **kwargs):
         is_newly_paid = True
         
     if is_newly_paid:
-        reason = f"Expense: {instance.category.name if instance.category else 'Uncategorized'} - {instance.description}"
-        if not Transaction.objects.filter(project=instance.project, amount=instance.amount, date=instance.date, transaction_type='Paid', payment_type_other_reason=reason).exists():
+        cat_name = instance.get_category_display() if hasattr(instance, 'get_category_display') else str(instance.category)
+        reason = f"Expense: {cat_name} - {instance.description}"
+        tx_date = instance.expense_date or instance.date or timezone.now().date()
+        if not Transaction.objects.filter(project=instance.project, amount=instance.amount, transaction_date=tx_date, transaction_type='Paid', payment_type_other_reason=reason).exists():
             Transaction.objects.create(
                 project=instance.project,
-                date=instance.date,
+                date=tx_date,
+                transaction_date=tx_date,
                 amount=instance.amount,
                 transaction_type='Paid',
                 payment_type='Other',
