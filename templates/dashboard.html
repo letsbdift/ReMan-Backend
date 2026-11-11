@@ -30,9 +30,12 @@
     <div class="col-md-3">
         <div class="card shadow-sm border-0 h-100 bg-light border-start border-danger border-4">
             <div class="card-body">
-                <p class="text-dark mb-1 text-uppercase fw-bold" style="font-size: 0.8rem;">Total Paid</p>
-                <h4 class="mb-0 fw-bold text-dark">₹{{ total_paid|floatformat:2 }}</h4>
-                <small class="text-dark">Pending Payables: ₹{{ pending_payables|floatformat:2 }}</small>
+                <p class="text-dark mb-1 text-uppercase fw-bold" style="font-size: 0.8rem;">Total Investment</p>
+                <h4 class="mb-0 fw-bold text-dark">₹{{ total_investment|default:total_partnership_investment|floatformat:2 }}</h4>
+                <small class="text-dark">Includes Partner Capital & Paid Expenses</small>
+                {% if pending_payables > 0 %}
+                <div class="small text-muted mt-1">Pending Payables: ₹{{ pending_payables|floatformat:2 }}</div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -43,7 +46,7 @@
                 <h4 class="mb-0 fw-bold text-dark">
                     {% if net_profit < 0 %}-₹{{ net_profit|stringformat:"f"|slice:"1:"|floatformat:2 }}{% else %}₹{{ net_profit|floatformat:2 }}{% endif %}
                 </h4>
-                <small class="text-dark">Revenue - Total Expenses</small>
+                <small class="text-dark">Total Revenue - Total Investment</small>
             </div>
         </div>
     </div>
@@ -280,7 +283,7 @@
                         <tbody>
                             {% for t in recent_transactions|slice:":5" %}
                             <tr>
-                                <td>{{ t.date|date:"d/m/Y" }}</td>
+                                <td>{{ t.transaction_date|default:t.date|date:"d/m/Y" }}</td>
                                 <td><span class="badge {% if t.transaction_type == 'Received' %}bg-success{% else %}bg-danger{% endif %}">{{ t.transaction_type }}</span></td>
                                 <td>{{ t.paid_by|default:"-" }}</td>
                                 <td class="fw-bold">₹{{ t.amount|floatformat:2 }}</td>

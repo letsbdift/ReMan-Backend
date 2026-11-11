@@ -72,7 +72,7 @@
             {% for p in transactions %}
             <tr class="clickable-row bg-white" style="cursor: pointer;">
                 <td class="sticky-left fw-bold bg-white" style="left: 0;">
-                    <div class="text-dark">{{ p.date|date:"d/m/Y" }}</div>
+                    <div class="text-dark">{{ p.transaction_date|default:p.date|date:"d/m/Y" }}</div>
                 </td>
                 <td>{{ p.payment_type }}</td>
                 <td><div class="text-truncate" style="max-width: 120px;" title="{{ p.contact|default:'-' }}">{{ p.contact.name|default:"-" }}</div></td>
@@ -82,7 +82,7 @@
                 
                 <td class="d-none record-details">
                     <div data-label="Project">{{ p.project.project_name|default:"-" }}</div>
-                    <div data-label="Date">{{ p.date|date:"d/m/Y" }}</div>
+                    <div data-label="Date">{{ p.transaction_date|default:p.date|date:"d/m/Y" }}</div>
                     <div data-label="Contact">{% if p.contact %}{{ p.contact.name }}{% elif p.paid_by %}{{ p.paid_by }}{% else %}-{% endif %}</div>
                     <div data-label="Project or Deal">{{ p.project_or_deal|default:"-" }}</div>
                     <div data-label="Transaction Type">{{ p.payment_type }}</div>

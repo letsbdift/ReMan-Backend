@@ -247,7 +247,7 @@ class Transaction(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-transaction_date', '-created_at']
+        ordering = ['-transaction_date', '-date', '-id']
 
     def save(self, *args, **kwargs):
         if self.transaction_date and not self.date:

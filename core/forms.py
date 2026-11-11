@@ -54,10 +54,9 @@ class ProjectForm(StyledModelForm):
 class TransactionForm(StyledModelForm):
     class Meta:
         model = Transaction
-        exclude = ['received_by']
+        exclude = ['received_by', 'date']
         labels = {
             'transaction_date': 'Transaction Date',
-            'date': 'Transaction Date',
             'payment_type': 'Transaction purpose',
             'payment_method': 'Transaction method',
             'project_or_deal': 'Project or Deal',
@@ -73,11 +72,10 @@ class TransactionForm(StyledModelForm):
             self.fields['contact'].required = False
             self.fields['contact'].empty_label = "---------"
         
-        for f in ['transaction_date', 'date']:
-            if f in self.fields:
-                self.fields[f].widget = forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
-                if not self.initial.get(f) and (not self.instance or not self.instance.pk):
-                    self.initial[f] = today
+        if 'transaction_date' in self.fields:
+            self.fields['transaction_date'].widget = forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+            if not self.initial.get('transaction_date') and (not self.instance or not self.instance.pk or not self.instance.transaction_date):
+                self.initial['transaction_date'] = today
         
         partners = Contact.objects.filter(contact_type='Partner')
         choices = [('', '---------'), ('Company funds', 'Company funds')]
@@ -89,12 +87,12 @@ class TransactionForm(StyledModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        tx_date = cleaned_data.get('transaction_date') or cleaned_data.get('date')
-        if tx_date:
-            cleaned_data['transaction_date'] = tx_date
-            cleaned_data['date'] = tx_date
-            self.instance.transaction_date = tx_date
-            self.instance.date = tx_date
+        today = date.today()
+        tx_date = cleaned_data.get('transaction_date') or today
+        cleaned_data['transaction_date'] = tx_date
+        cleaned_data['date'] = tx_date
+        self.instance.transaction_date = tx_date
+        self.instance.date = tx_date
             
         ttype = cleaned_data.get('transaction_type')
         ptype = cleaned_data.get('payment_type')
@@ -111,10 +109,9 @@ class TransactionForm(StyledModelForm):
 class ExpenseForm(StyledModelForm):
     class Meta:
         model = Expense
-        fields = '__all__'
+        exclude = ['date']
         labels = {
             'expense_date': 'Expense Date',
-            'date': 'Expense Date',
             'category': 'Expense Category',
             'paid_by': 'Paid By (Partner)'
         }
@@ -124,11 +121,10 @@ class ExpenseForm(StyledModelForm):
         today = date.today()
         self.fields['payment_method'].required = True
         
-        for f in ['expense_date', 'date']:
-            if f in self.fields:
-                self.fields[f].widget = forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
-                if not self.initial.get(f) and (not self.instance or not self.instance.pk):
-                    self.initial[f] = today
+        if 'expense_date' in self.fields:
+            self.fields['expense_date'].widget = forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+            if not self.initial.get('expense_date') and (not self.instance or not self.instance.pk or not self.instance.expense_date):
+                self.initial['expense_date'] = today
         
         if 'category' in self.fields:
             self.fields['category'] = forms.ChoiceField(
@@ -147,12 +143,12 @@ class ExpenseForm(StyledModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        exp_date = cleaned_data.get('expense_date') or cleaned_data.get('date')
-        if exp_date:
-            cleaned_data['expense_date'] = exp_date
-            cleaned_data['date'] = exp_date
-            self.instance.expense_date = exp_date
-            self.instance.date = exp_date
+        today = date.today()
+        exp_date = cleaned_data.get('expense_date') or today
+        cleaned_data['expense_date'] = exp_date
+        cleaned_data['date'] = exp_date
+        self.instance.expense_date = exp_date
+        self.instance.date = exp_date
         return cleaned_data
 
 class DocumentForm(StyledModelForm):

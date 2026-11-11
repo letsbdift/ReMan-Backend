@@ -34,7 +34,7 @@ def dashboard(request):
         sold_units=Count('sites', filter=Q(sites__status='Sold'))
     ).all()
     
-    recent_transactions = Transaction.objects.all().order_by('-transaction_date', '-created_at')
+    recent_transactions = Transaction.objects.all().order_by('-transaction_date', '-date', '-id')
     total_received_qs = Transaction.objects.filter(transaction_type='Received')
     total_paid_qs = Transaction.objects.filter(transaction_type='Paid')
     
@@ -150,23 +150,40 @@ def dashboard(request):
     paid_shared_expenses = shared_qs.aggregate(total=Coalesce(Sum('total_amount'), Decimal('0.00')))['total']
     total_expenses = paid_expenses + paid_shared_expenses
     total_expenses_all = total_expenses
-    
-    # Net Profit = Total Revenue - Total Expenses
-    calculated_net_profit = total_revenue - total_expenses
     pending_payables = base_expenses.exclude(status__iexact='Paid').aggregate(total=Coalesce(Sum('amount'), Decimal('0.00')))['total']
+
+    # --- TOTAL INVESTMENT (Partner Capital + All Paid Expenses + Paid Shared Expenses) ---
+    total_paid_tx = total_paid_qs.aggregate(total=Coalesce(Sum('amount'), Decimal('0.00')))['total']
+    
+    # Identify unlinked paid expenses to prevent double counting
+    unlinked_paid_expenses = Decimal('0.00')
+    for exp in base_expenses.filter(status__iexact='Paid'):
+        is_in_tx = total_paid_qs.filter(
+            Q(notes__icontains=f"[ExpenseRef: {exp.id}]") |
+            Q(notes__icontains=f"[ExpenseRef:{exp.id}]") |
+            Q(notes__icontains=exp.description, amount=exp.amount)
+        ).exists()
+        if not is_in_tx:
+            other_tx = total_paid_qs.filter(payment_type='Other', amount=exp.amount, paid_by__icontains=exp.paid_by or '').exists()
+            if not other_tx:
+                unlinked_paid_expenses += exp.amount
+                
+    total_investment = total_paid_tx + unlinked_paid_expenses + paid_shared_expenses
+
+    # --- NET PROFIT = TOTAL REVENUE - TOTAL INVESTMENT ---
+    calculated_net_profit = total_revenue - total_investment
     
     # --- PARTNER FINANCIAL ANALYTICS ---
     all_partners = Contact.objects.filter(contact_type='Partner').order_by('name')
     N_partners = all_partners.count()
     partner_stats = []
-    total_partnership_investment = Decimal('0.00')
+    total_partnership_investment = total_investment
     total_partnership_receipts = Decimal('0.00')
     
     for p in all_partners:
         invested = base_transactions.filter(transaction_type='Paid', paid_by__icontains=p.name).aggregate(t=Coalesce(Sum('amount'), Decimal('0.00')))['t']
         received = base_transactions.filter(transaction_type='Received', paid_by__icontains=p.name).aggregate(t=Coalesce(Sum('amount'), Decimal('0.00')))['t']
         
-        total_partnership_investment += invested
         total_partnership_receipts += received
         
         # Calculate profit share based on ownership percentage
@@ -276,7 +293,9 @@ def dashboard(request):
         'recent_transactions': recent_transactions,
         'total_received': total_received or 0,
         'total_revenue': total_received or 0,
-        'total_paid': total_paid or 0,
+        'total_investment': total_investment,
+        'total_partnership_investment': total_investment,
+        'total_paid': total_investment,
         'total_expenses': total_expenses_all or 0,
         'total_expenses_all': total_expenses_all or 0,
         'net_profit': calculated_net_profit,
@@ -470,7 +489,7 @@ class TransactionList(ListView):
     context_object_name = 'transactions'
 
     def get_queryset(self):
-        qs = Transaction.objects.all().order_by('-transaction_date', '-created_at')
+        qs = Transaction.objects.all().order_by('-transaction_date', '-date', '-id')
         project_id = self.request.GET.get('project_id', 'all')
         transaction_type = self.request.GET.get('transaction_type', 'all')
         partner_name = self.request.GET.get('partner_name', 'all')
