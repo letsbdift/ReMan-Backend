@@ -2,8 +2,8 @@ services:
   - type: web
     name: reman-backend
     runtime: python
-    buildCommand: pip install -r requirements.txt && python manage.py migrate
-    startCommand: gunicorn config.wsgi:application
+    buildCommand: "pip install -r requirements.txt && python manage.py migrate"
+    startCommand: "python manage.py migrate && gunicorn config.wsgi:application"
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.12
