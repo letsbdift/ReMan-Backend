@@ -13,6 +13,11 @@ Django-based web application and backend management system for real estate opera
 - **Frontend**: Bootstrap 5, Bootstrap Icons, Chart.js
 - **Database**: SQLite (default / dev) / PostgreSQL / MySQL (production compatible)
 
+## Production Cloud Deployment (Render / Railway / Heroku)
+
+- **Build Command**: `pip install -r requirements.txt && python manage.py migrate`
+- **Start Command**: `python manage.py migrate && gunicorn config.wsgi:application`
+
 ## Setup & Running Locally
 
 1. **Clone the repository:**
