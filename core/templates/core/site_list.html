@@ -15,6 +15,12 @@
             <input type="hidden" name="status" value="{{ selected_status }}">
             {% endif %}
         </form>
+        <a href="{% url 'export_sites_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-outline-danger rounded-pill px-3">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
+        </a>
+        <button type="button" onclick="shareReportPdf('{% url 'export_sites_pdf' %}?{{ request.GET.urlencode }}', 'Sites_Inventory_Report')" class="btn btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-share me-1"></i> Share
+        </button>
         <a href="{% url 'site_payment_list' %}" class="btn btn-outline-primary rounded-pill px-3"><i class="bi bi-wallet2"></i> Site Payments</a>
         <button type="button" class="btn btn-outline-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#importModal"><i class="bi bi-file-earmark-excel"></i> Import</button>
         <a href="{% url 'site_create' %}?project_id={{ selected_project_id }}" class="btn btn-primary rounded-pill px-4">Add Site</a>

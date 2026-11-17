@@ -494,16 +494,22 @@ class TransactionList(ListView):
         transaction_type = self.request.GET.get('transaction_type', 'all')
         partner_name = self.request.GET.get('partner_name', 'all')
         payment_method = self.request.GET.get('payment_method', 'all')
+        from_date = self.request.GET.get('from_date')
+        to_date = self.request.GET.get('to_date')
         
+        from django.db.models import Q
         if project_id and project_id != 'all':
             qs = qs.filter(project_id=project_id)
         if transaction_type and transaction_type != 'all':
             qs = qs.filter(transaction_type=transaction_type)
         if partner_name and partner_name != 'all':
-            from django.db.models import Q
             qs = qs.filter(Q(paid_by__icontains=partner_name) | Q(contact__name__icontains=partner_name))
         if payment_method and payment_method != 'all':
             qs = qs.filter(payment_method=payment_method)
+        if from_date:
+            qs = qs.filter(Q(transaction_date__gte=from_date) | Q(date__gte=from_date))
+        if to_date:
+            qs = qs.filter(Q(transaction_date__lte=to_date) | Q(date__lte=to_date))
         return qs
 
     def get_context_data(self, **kwargs):
@@ -521,9 +527,9 @@ class TransactionList(ListView):
         ctx['selected_partner_name'] = self.request.GET.get('partner_name', 'all')
         ctx['selected_project_id'] = self.request.GET.get('project_id', 'all')
         ctx['selected_payment_method'] = self.request.GET.get('payment_method', 'all')
-        ctx['selected_project_id'] = self.request.GET.get('project_id', 'all')
         ctx['selected_paid_by_name'] = self.request.GET.get('paid_by_name', 'all')
-        ctx['selected_payment_method'] = self.request.GET.get('payment_method', 'all')
+        ctx['from_date'] = self.request.GET.get('from_date', '')
+        ctx['to_date'] = self.request.GET.get('to_date', '')
         return ctx
 
 
@@ -963,3 +969,298 @@ def global_search(request):
         results['sites'] = Site.objects.filter(Q(site_number__icontains=query) | Q(customer__name__icontains=query))[:10]
         results['projects'] = Project.objects.filter(Q(project_name__icontains=query) | Q(location__icontains=query))[:10]
     return render(request, 'core/search_results.html', {'query': query, 'results': results})
+
+
+# ==========================================
+# REPORT GENERATION & SHARING ENDPOINTS
+# ==========================================
+
+@login_required
+def export_transactions_pdf(request):
+    from .reports import generate_transactions_pdf
+    from django.db.models import Q, Sum
+    from decimal import Decimal
+    
+    qs = Transaction.objects.all().order_by('-transaction_date', '-date', '-id')
+    project_id = request.GET.get('project_id', 'all')
+    transaction_type = request.GET.get('transaction_type', 'all')
+    partner_name = request.GET.get('partner_name', 'all')
+    payment_method = request.GET.get('payment_method', 'all')
+    from_date = request.GET.get('from_date')
+    to_date = request.GET.get('to_date')
+    
+    filters = []
+    if project_id and project_id != 'all':
+        qs = qs.filter(project_id=project_id)
+        p = Project.objects.filter(pk=project_id).first()
+        if p: filters.append(f"Project: {p.project_name}")
+    if transaction_type and transaction_type != 'all':
+        qs = qs.filter(transaction_type=transaction_type)
+        filters.append(f"Type: {transaction_type}")
+    if partner_name and partner_name != 'all':
+        qs = qs.filter(Q(paid_by__icontains=partner_name) | Q(contact__name__icontains=partner_name))
+        filters.append(f"Partner: {partner_name}")
+    if payment_method and payment_method != 'all':
+        qs = qs.filter(payment_method=payment_method)
+        filters.append(f"Method: {payment_method}")
+    if from_date:
+        qs = qs.filter(Q(transaction_date__gte=from_date) | Q(date__gte=from_date))
+        filters.append(f"From: {from_date}")
+    if to_date:
+        qs = qs.filter(Q(transaction_date__lte=to_date) | Q(date__lte=to_date))
+        filters.append(f"To: {to_date}")
+        
+    grand_total = qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    summary_str = " | ".join(filters) if filters else "All Records"
+    
+    pdf_bytes = generate_transactions_pdf(qs, filter_summary=summary_str, grand_total=grand_total)
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="Transactions_Report.pdf"'
+    return response
+
+@login_required
+def export_expenses_pdf(request):
+    from .reports import generate_expenses_pdf
+    
+    project_id = request.GET.get('project_id', 'all')
+    paid_by_name = request.GET.get('paid_by_name', 'all')
+    category = request.GET.get('category') or request.GET.get('category_id', 'all')
+    
+    expenses = Expense.objects.all().order_by('-expense_date', '-id')
+    filters = []
+    if project_id and project_id != 'all':
+        expenses = expenses.filter(project_id=project_id)
+        p = Project.objects.filter(pk=project_id).first()
+        if p: filters.append(f"Project: {p.project_name}")
+    if paid_by_name and paid_by_name != 'all':
+        expenses = expenses.filter(paid_by__icontains=paid_by_name)
+        filters.append(f"Paid By: {paid_by_name}")
+    if category and category != 'all':
+        expenses = expenses.filter(category=category)
+        filters.append(f"Category: {category}")
+        
+    summary_str = " | ".join(filters) if filters else "All Records"
+    pdf_bytes = generate_expenses_pdf(expenses, filter_summary=summary_str)
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="Expenses_Report.pdf"'
+    return response
+
+@login_required
+def export_contacts_pdf(request):
+    from .reports import generate_contacts_pdf
+    from django.db.models import Q
+    
+    project_id = request.GET.get('project_id', 'all')
+    contact_type = request.GET.get('contact_type', 'all')
+    q = request.GET.get('q', '')
+    
+    contacts = Contact.objects.all().order_by('-id')
+    filters = []
+    if project_id and project_id != 'all':
+        contacts = contacts.filter(project_id=project_id)
+        p = Project.objects.filter(pk=project_id).first()
+        if p: filters.append(f"Project: {p.project_name}")
+    if contact_type and contact_type != 'all':
+        contacts = contacts.filter(contact_type=contact_type)
+        filters.append(f"Type: {contact_type}")
+    if q:
+        contacts = contacts.filter(Q(name__icontains=q) | Q(mobile__icontains=q) | Q(email__icontains=q))
+        filters.append(f"Search: '{q}'")
+        
+    summary_str = " | ".join(filters) if filters else "All Records"
+    pdf_bytes = generate_contacts_pdf(contacts, filter_summary=summary_str)
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="Contacts_Report.pdf"'
+    return response
+
+@login_required
+def export_sites_pdf(request):
+    from .reports import generate_sites_pdf
+    
+    project_id = request.GET.get('project_id', 'all')
+    status = request.GET.get('status', 'All')
+    
+    sites = Site.objects.all().order_by('-added_date', 'site_number')
+    filters = []
+    if project_id and project_id != 'all':
+        sites = sites.filter(project_id=project_id)
+        p = Project.objects.filter(pk=project_id).first()
+        if p: filters.append(f"Project: {p.project_name}")
+    if status and status != 'All':
+        sites = sites.filter(status=status)
+        filters.append(f"Status: {status}")
+        
+    summary_str = " | ".join(filters) if filters else "All Records"
+    pdf_bytes = generate_sites_pdf(sites, filter_summary=summary_str)
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="Sites_Inventory_Report.pdf"'
+    return response
+
+@login_required
+def export_leads_pdf(request):
+    from .reports import generate_leads_pdf
+    
+    leads = Lead.objects.all().order_by('-id')
+    project_id = request.GET.get('project_id', 'all')
+    filters = []
+    if project_id and project_id != 'all':
+        leads = leads.filter(project_id=project_id)
+        p = Project.objects.filter(pk=project_id).first()
+        if p: filters.append(f"Project: {p.project_name}")
+        
+    summary_str = " | ".join(filters) if filters else "All Records"
+    pdf_bytes = generate_leads_pdf(leads, filter_summary=summary_str)
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="Leads_Report.pdf"'
+    return response
+
+@login_required
+def export_deals_pdf(request):
+    from .reports import generate_deals_pdf
+    
+    deals = LandDeal.objects.all().order_by('-created_at', '-id')
+    project_id = request.GET.get('project_id', 'all')
+    filters = []
+    if project_id and project_id != 'all':
+        deals = deals.filter(project_id=project_id)
+        p = Project.objects.filter(pk=project_id).first()
+        if p: filters.append(f"Project: {p.project_name}")
+        
+    summary_str = " | ".join(filters) if filters else "All Records"
+    pdf_bytes = generate_deals_pdf(deals, filter_summary=summary_str)
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="Deals_Report.pdf"'
+    return response
+
+
+# ==========================================
+# ALERTS & REMINDERS MODULE
+# ==========================================
+
+@login_required
+def alerts_view(request):
+    from datetime import date, timedelta
+    today = date.today()
+    next_week = today + timedelta(days=7)
+    
+    # 1. Overdue
+    overdue_f = FollowUp.objects.filter(status='Pending', date__lt=today).order_by('date')
+    overdue_l = Lead.objects.filter(next_follow_up__date__lt=today).exclude(status__in=['Converted', 'Not Interested', 'Lost']).order_by('next_follow_up')
+    overdue_d = LandDeal.objects.filter(next_follow_up__date__lt=today).exclude(status__in=['Deal Closed', 'Deal Cancelled', 'Deal Lost']).order_by('next_follow_up')
+
+    # 2. Today
+    today_f = FollowUp.objects.filter(status='Pending', date=today).order_by('time', 'id')
+    today_l = Lead.objects.filter(next_follow_up__date=today).exclude(status__in=['Converted', 'Not Interested', 'Lost']).order_by('next_follow_up')
+    today_d = LandDeal.objects.filter(next_follow_up__date=today).exclude(status__in=['Deal Closed', 'Deal Cancelled', 'Deal Lost']).order_by('next_follow_up')
+
+    # 3. Upcoming
+    upcoming_f = FollowUp.objects.filter(status='Pending', date__gt=today, date__lte=next_week).order_by('date')
+    upcoming_l = Lead.objects.filter(next_follow_up__date__gt=today, next_follow_up__date__lte=next_week).exclude(status__in=['Converted', 'Not Interested', 'Lost']).order_by('next_follow_up')
+    upcoming_d = LandDeal.objects.filter(next_follow_up__date__gt=today, next_follow_up__date__lte=next_week).exclude(status__in=['Deal Closed', 'Deal Cancelled', 'Deal Lost']).order_by('next_follow_up')
+
+    # 4. Financial dues
+    pending_expenses = Expense.objects.filter(status='To Be Paid').order_by('-amount')
+    pending_site_balances = Site.objects.filter(balance__gt=0).order_by('-balance')
+
+    # 5. Recent Activity
+    recent_activities = Activity.objects.all().order_by('-date', '-id')[:15]
+
+    from .messaging import format_followup_reminder, format_payment_reminder, get_whatsapp_url
+
+    overdue_alerts = []
+    for f in overdue_f:
+        msg = format_followup_reminder(related_to=f.related_to, reason=f.reason, date=f.date, time=f.time, notes=f.note)
+        overdue_alerts.append({
+            'type': 'Follow-up', 'title': f.related_to, 'reason': f.reason, 'date': f.date, 'time': f.time,
+            'url': f'/followups/{f.pk}/edit/', 'message': msg, 'phone': '', 'wa_url': get_whatsapp_url('', msg),
+            'obj': f, 'priority': 'Overdue'
+        })
+    for l in overdue_l:
+        msg = format_followup_reminder(name=l.name, related_to=f"Lead: {l.name}", reason="Scheduled Lead Follow-up", date=l.next_follow_up.date() if l.next_follow_up else today, notes=l.notes)
+        overdue_alerts.append({
+            'type': 'Lead', 'title': l.name, 'reason': l.notes or 'Scheduled lead follow-up', 'date': l.next_follow_up.date() if l.next_follow_up else today,
+            'url': f'/leads/{l.pk}/edit/', 'message': msg, 'phone': l.phone, 'wa_url': get_whatsapp_url(l.phone, msg),
+            'obj': l, 'priority': 'Overdue'
+        })
+    for d in overdue_d:
+        phone = d.landowner.mobile if d.landowner else (d.broker.mobile if d.broker else '')
+        msg = format_followup_reminder(name=d.landowner.name if d.landowner else None, related_to=f"Deal: {d.deal_name}", reason="Deal Follow-up", date=d.next_follow_up.date() if d.next_follow_up else today, notes=d.notes)
+        overdue_alerts.append({
+            'type': 'Land Deal', 'title': d.deal_name, 'reason': d.notes or 'Deal negotiation follow-up', 'date': d.next_follow_up.date() if d.next_follow_up else today,
+            'url': f'/deals/{d.pk}/edit/', 'message': msg, 'phone': phone, 'wa_url': get_whatsapp_url(phone, msg),
+            'obj': d, 'priority': 'Overdue'
+        })
+
+    today_alerts = []
+    for f in today_f:
+        msg = format_followup_reminder(related_to=f.related_to, reason=f.reason, date=f.date, time=f.time, notes=f.note)
+        today_alerts.append({
+            'type': 'Follow-up', 'title': f.related_to, 'reason': f.reason, 'date': f.date, 'time': f.time,
+            'url': f'/followups/{f.pk}/edit/', 'message': msg, 'phone': '', 'wa_url': get_whatsapp_url('', msg),
+            'obj': f, 'priority': 'Today'
+        })
+    for l in today_l:
+        msg = format_followup_reminder(name=l.name, related_to=f"Lead: {l.name}", reason="Scheduled Lead Follow-up", date=today, notes=l.notes)
+        today_alerts.append({
+            'type': 'Lead', 'title': l.name, 'reason': l.notes or 'Scheduled lead follow-up', 'date': today,
+            'url': f'/leads/{l.pk}/edit/', 'message': msg, 'phone': l.phone, 'wa_url': get_whatsapp_url(l.phone, msg),
+            'obj': l, 'priority': 'Today'
+        })
+    for d in today_d:
+        phone = d.landowner.mobile if d.landowner else (d.broker.mobile if d.broker else '')
+        msg = format_followup_reminder(name=d.landowner.name if d.landowner else None, related_to=f"Deal: {d.deal_name}", reason="Deal Follow-up", date=today, notes=d.notes)
+        today_alerts.append({
+            'type': 'Land Deal', 'title': d.deal_name, 'reason': d.notes or 'Deal negotiation follow-up', 'date': today,
+            'url': f'/deals/{d.pk}/edit/', 'message': msg, 'phone': phone, 'wa_url': get_whatsapp_url(phone, msg),
+            'obj': d, 'priority': 'Today'
+        })
+
+    upcoming_alerts = []
+    for f in upcoming_f:
+        msg = format_followup_reminder(related_to=f.related_to, reason=f.reason, date=f.date, time=f.time, notes=f.note)
+        upcoming_alerts.append({
+            'type': 'Follow-up', 'title': f.related_to, 'reason': f.reason, 'date': f.date, 'time': f.time,
+            'url': f'/followups/{f.pk}/edit/', 'message': msg, 'phone': '', 'wa_url': get_whatsapp_url('', msg),
+            'obj': f, 'priority': 'Upcoming'
+        })
+    for l in upcoming_l:
+        msg = format_followup_reminder(name=l.name, related_to=f"Lead: {l.name}", reason="Lead Follow-up", date=l.next_follow_up.date() if l.next_follow_up else None, notes=l.notes)
+        upcoming_alerts.append({
+            'type': 'Lead', 'title': l.name, 'reason': l.notes or 'Upcoming lead follow-up', 'date': l.next_follow_up.date() if l.next_follow_up else None,
+            'url': f'/leads/{l.pk}/edit/', 'message': msg, 'phone': l.phone, 'wa_url': get_whatsapp_url(l.phone, msg),
+            'obj': l, 'priority': 'Upcoming'
+        })
+    for d in upcoming_d:
+        phone = d.landowner.mobile if d.landowner else (d.broker.mobile if d.broker else '')
+        msg = format_followup_reminder(name=d.landowner.name if d.landowner else None, related_to=f"Deal: {d.deal_name}", reason="Deal Follow-up", date=d.next_follow_up.date() if d.next_follow_up else None, notes=d.notes)
+        upcoming_alerts.append({
+            'type': 'Land Deal', 'title': d.deal_name, 'reason': d.notes or 'Upcoming deal discussion', 'date': d.next_follow_up.date() if d.next_follow_up else None,
+            'url': f'/deals/{d.pk}/edit/', 'message': msg, 'phone': phone, 'wa_url': get_whatsapp_url(phone, msg),
+            'obj': d, 'priority': 'Upcoming'
+        })
+
+    site_balance_alerts = []
+    for s in pending_site_balances:
+        phone = s.customer.mobile if s.customer else ''
+        cust_name = s.customer.name if s.customer else 'Valued Customer'
+        proj_name = s.project.project_name if s.project else ''
+        msg = format_payment_reminder(customer_name=cust_name, site_number=s.site_number, balance=s.balance, project_name=proj_name, notes=s.notes)
+        site_balance_alerts.append({
+            'site': s, 'customer_name': cust_name, 'phone': phone, 'balance': s.balance,
+            'message': msg, 'wa_url': get_whatsapp_url(phone, msg), 'url': f'/sites/{s.pk}/edit/'
+        })
+
+    context = {
+        'overdue_alerts': overdue_alerts,
+        'today_alerts': today_alerts,
+        'upcoming_alerts': upcoming_alerts,
+        'pending_expenses': pending_expenses,
+        'site_balance_alerts': site_balance_alerts,
+        'recent_activities': recent_activities,
+        'total_overdue': len(overdue_alerts),
+        'total_today': len(today_alerts),
+        'total_upcoming': len(upcoming_alerts),
+        'total_dues': pending_expenses.count() + len(site_balance_alerts),
+        'total_alerts_count': len(overdue_alerts) + len(today_alerts) + pending_expenses.count()
+    }
+    return render(request, 'core/alerts.html', context)

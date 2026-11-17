@@ -1,8 +1,11 @@
 {% extends 'base.html' %}
 {% block title %}Land Deals | RE Manager{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-4 border-bottom flex-wrap gap-2">
-    <h1 class="h2 mb-0">Land Deals</h1>
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom flex-wrap gap-2">
+    <div>
+        <h1 class="h2 mb-1 fw-bold">Land Deals</h1>
+        <p class="text-muted small mb-0">Track and manage land acquisition, negotiation stages, and landowner terms.</p>
+    </div>
     <div class="d-flex gap-2 align-items-center flex-wrap">
         <form method="GET" class="d-flex m-0">
             <select name="project_id" class="form-select border-primary text-primary fw-bold" style="min-width: 200px; border-radius: 20px;" onchange="this.form.submit()">
@@ -12,8 +15,18 @@
                 {% endfor %}
             </select>
         </form>
-        <button onclick="exportTableToCSV('export.csv')" class="btn btn-outline-secondary rounded-pill px-3"><i class="bi bi-download"></i> Export</button>
-        <a href="{% url 'deal_create' %}?project_id={{ selected_project_id }}" class="btn btn-primary rounded-pill px-4">Add New</a>
+        <a href="{% url 'export_deals_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-outline-danger rounded-pill px-3">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
+        </a>
+        <button type="button" onclick="shareReportPdf('{% url 'export_deals_pdf' %}?{{ request.GET.urlencode }}', 'Deals_Report')" class="btn btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-share me-1"></i> Share
+        </button>
+        <button onclick="exportTableToCSV('Deals_Export.csv')" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-download me-1"></i> CSV
+        </button>
+        <a href="{% url 'deal_create' %}?project_id={{ selected_project_id }}" class="btn btn-primary rounded-pill px-4">
+            <i class="bi bi-plus-lg me-1"></i> Add New
+        </a>
     </div>
 </div>
 <div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">

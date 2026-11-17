@@ -72,4 +72,15 @@ urlpatterns = [
     path('documents/add/', views.DocumentCreate.as_view(), name='document_create'),
     path('documents/<int:pk>/edit/', views.DocumentUpdate.as_view(), name='document_update'),
     path('documents/<int:pk>/delete/', views.DocumentDelete.as_view(), name='document_delete'),
+
+    # Alerts Module
+    path('alerts/', views.alerts_view, name='alerts'),
+
+    # PDF Report Generation Endpoints
+    path('reports/transactions/pdf/', views.export_transactions_pdf, name='export_transactions_pdf'),
+    path('reports/expenses/pdf/', views.export_expenses_pdf, name='export_expenses_pdf'),
+    path('reports/contacts/pdf/', views.export_contacts_pdf, name='export_contacts_pdf'),
+    path('reports/sites/pdf/', views.export_sites_pdf, name='export_sites_pdf'),
+    path('reports/leads/pdf/', views.export_leads_pdf, name='export_leads_pdf'),
+    path('reports/deals/pdf/', views.export_deals_pdf, name='export_deals_pdf'),
 ]

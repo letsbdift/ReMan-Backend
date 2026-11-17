@@ -1,58 +1,75 @@
 {% extends 'base.html' %}
 {% block title %}Transactions | RE Manager{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-4 border-bottom flex-wrap gap-2">
-    <h1 class="h2 mb-0">Transactions</h1>
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom flex-wrap gap-2">
+    <div>
+        <h1 class="h2 mb-1 fw-bold">Transactions</h1>
+        <p class="text-muted small mb-0">Record and monitor all paid and received transactions across projects.</p>
+    </div>
     <div class="d-flex gap-2 align-items-center flex-wrap">
-        
-<div class="card-body border-bottom bg-light">
-    
-
-<form method="GET" class="row g-3 align-items-center">
-    <div class="col-auto">
-        <select name="project_id" class="form-select">
-            <option value="all">All Projects</option>
-            {% for p in all_projects %}
-            <option value="{{ p.id }}" {% if p.id|stringformat:"s" == selected_project_id %}selected{% endif %}>{{ p.project_name }}</option>
-            {% endfor %}
-        </select>
+        <a href="{% url 'export_transactions_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-outline-danger rounded-pill px-3">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
+        </a>
+        <button type="button" onclick="shareReportPdf('{% url 'export_transactions_pdf' %}?{{ request.GET.urlencode }}', 'Transactions_Report')" class="btn btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-share me-1"></i> Share
+        </button>
+        <button onclick="exportTableToCSV('Transactions_Export.csv')" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-download me-1"></i> CSV
+        </button>
+        <a href="{% url 'transaction_create' %}?project_id={{ selected_project_id }}" class="btn btn-primary rounded-pill px-4">
+            <i class="bi bi-plus-lg me-1"></i> Add New
+        </a>
     </div>
-    <div class="col-auto">
-        <select name="transaction_type" class="form-select">
-            <option value="all">All Types</option>
-            <option value="Paid" {% if selected_transaction_type == 'Paid' %}selected{% endif %}>Paid</option>
-            <option value="Received" {% if selected_transaction_type == 'Received' %}selected{% endif %}>Received</option>
-        </select>
-    </div>
-    <div class="col-auto">
-        <select name="partner_name" class="form-select">
-            <option value="all">All Partners</option>
-            <option value="Company funds" {% if 'Company funds' == selected_partner_name %}selected{% endif %}>Company funds</option>
-            {% for c in all_partners %}
-            <option value="{{ c.name }}" {% if c.name == selected_partner_name %}selected{% endif %}>{{ c.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="col-auto">
-        <select name="payment_method" class="form-select">
-            <option value="all">All Methods</option>
-            <option value="Cash" {% if selected_payment_method == 'Cash' %}selected{% endif %}>Cash</option>
-            <option value="Bank Transfer" {% if selected_payment_method == 'Bank Transfer' %}selected{% endif %}>Bank Transfer</option>
-            <option value="UPI" {% if selected_payment_method == 'UPI' %}selected{% endif %}>UPI</option>
-            <option value="Cheque" {% if selected_payment_method == 'Cheque' %}selected{% endif %}>Cheque</option>
-        </select>
-    </div>
-    <div class="col-auto">
-        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
-        <a href="{% url 'transaction_list' %}" class="btn btn-secondary">Clear</a>
-    </div>
-</form>
-
-
 </div>
 
-        <button onclick="exportTableToCSV('export.csv')" class="btn btn-outline-secondary rounded-pill px-3"><i class="bi bi-download"></i> Export</button>
-        <a href="{% url 'transaction_create' %}?project_id={{ selected_project_id }}" class="btn btn-primary rounded-pill px-4">Add New</a>
+<!-- Transaction Filter Bar with Date Range Picker -->
+<div class="card shadow-sm border-0 mb-4 bg-white">
+    <div class="card-body p-3">
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-12 col-sm-6 col-md-2">
+                <label class="form-label small text-muted mb-1 fw-semibold">Project</label>
+                <select name="project_id" class="form-select form-select-sm">
+                    <option value="all">All Projects</option>
+                    {% for p in all_projects %}
+                    <option value="{{ p.id }}" {% if p.id|stringformat:"s" == selected_project_id %}selected{% endif %}>{{ p.project_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-2">
+                <label class="form-label small text-muted mb-1 fw-semibold">Type</label>
+                <select name="transaction_type" class="form-select form-select-sm">
+                    <option value="all">All Types</option>
+                    <option value="Paid" {% if selected_transaction_type == 'Paid' %}selected{% endif %}>Paid</option>
+                    <option value="Received" {% if selected_transaction_type == 'Received' %}selected{% endif %}>Received</option>
+                </select>
+            </div>
+            <div class="col-6 col-sm-6 col-md-2">
+                <label class="form-label small text-muted mb-1 fw-semibold">From Date</label>
+                <input type="date" name="from_date" class="form-control form-control-sm" value="{{ from_date }}">
+            </div>
+            <div class="col-6 col-sm-6 col-md-2">
+                <label class="form-label small text-muted mb-1 fw-semibold">To Date</label>
+                <input type="date" name="to_date" class="form-control form-control-sm" value="{{ to_date }}">
+            </div>
+            <div class="col-12 col-sm-6 col-md-2">
+                <label class="form-label small text-muted mb-1 fw-semibold">Partner</label>
+                <select name="partner_name" class="form-select form-select-sm">
+                    <option value="all">All Partners</option>
+                    <option value="Company funds" {% if 'Company funds' == selected_partner_name %}selected{% endif %}>Company funds</option>
+                    {% for c in all_partners %}
+                    <option value="{{ c.name }}" {% if c.name == selected_partner_name %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-2 d-flex align-items-end gap-1">
+                <button type="submit" class="btn btn-sm btn-primary flex-fill">
+                    <i class="bi bi-funnel-fill me-1"></i> Filter
+                </button>
+                <a href="{% url 'transaction_list' %}" class="btn btn-sm btn-outline-secondary">
+                    Clear
+                </a>
+            </div>
+        </form>
     </div>
 </div>
 <div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">

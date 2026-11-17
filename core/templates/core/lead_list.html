@@ -1,9 +1,25 @@
 {% extends 'base.html' %}
 {% block title %}Leads | RE Manager{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between pt-3 pb-2 mb-4 border-bottom">
-    <h1 class="h2">Leads</h1>
-    <a href="{% url "lead_create" %}" class="btn btn-primary">Add Lead</a>
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-4 border-bottom flex-wrap gap-2">
+    <div>
+        <h1 class="h2 mb-1 fw-bold">Leads</h1>
+        <p class="text-muted small mb-0">Prospective buyer inquiries, lead status tracking, and conversion pipeline.</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <a href="{% url 'export_leads_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-outline-danger rounded-pill px-3">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
+        </a>
+        <button type="button" onclick="shareReportPdf('{% url 'export_leads_pdf' %}?{{ request.GET.urlencode }}', 'Leads_Report')" class="btn btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-share me-1"></i> Share
+        </button>
+        <button onclick="exportTableToCSV('Leads_Export.csv')" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-download me-1"></i> CSV
+        </button>
+        <a href="{% url 'lead_create' %}" class="btn btn-primary rounded-pill px-4">
+            <i class="bi bi-plus-lg me-1"></i> Add Lead
+        </a>
+    </div>
 </div>
 <div class="table-responsive bg-white rounded shadow-sm" style="max-height: 70vh; overflow: auto;">
     <table class="table table-hover align-middle mb-0 text-nowrap">

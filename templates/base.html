@@ -51,6 +51,65 @@
             font-weight: bold;
             margin-left: 2px;
         }
+    
+        /* Sticky Bottom Navigation Bar */
+        body {
+            padding-bottom: 70px;
+        }
+        .bottom-nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 62px;
+            background-color: #ffffff;
+            border-top: 1px solid #e2e8f0;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+            z-index: 1040;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 4px 8px;
+        }
+        .bottom-nav-item {
+            flex: 1;
+            text-align: center;
+            text-decoration: none;
+            color: #64748b;
+            padding: 4px 2px;
+            transition: color 0.15s ease, transform 0.15s ease;
+            position: relative;
+        }
+        .bottom-nav-item i {
+            display: block;
+            font-size: 1.25rem;
+            line-height: 1.2;
+            margin-bottom: 2px;
+        }
+        .bottom-nav-item span {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: -0.2px;
+        }
+        .bottom-nav-item:hover {
+            color: #0f172a;
+        }
+        .bottom-nav-item.active {
+            color: #0d6efd;
+            font-weight: bold;
+        }
+        .bottom-nav-item.active i {
+            transform: scale(1.15);
+        }
+        .bottom-nav-badge {
+            position: absolute;
+            top: 2px;
+            right: calc(50% - 18px);
+            font-size: 0.65rem;
+            padding: 0.2em 0.45em;
+        }
+
     </style>
 </head>
 <body>
@@ -75,6 +134,15 @@
                     <h5 class="px-3 d-none d-md-block">RE Manager</h5>
                     <ul class="nav flex-column mt-md-3 w-100 pb-4">
                         <li class="nav-item"><a href="{% url 'dashboard' %}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                        <li class="nav-item">
+                            <a href="{% url 'alerts' %}" class="d-flex align-items-center justify-content-between">
+                                <span><i class="bi bi-bell-fill text-danger"></i> Alerts</span>
+                                {% if active_alerts_count %}
+                                <span class="badge bg-danger rounded-pill">{{ active_alerts_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+
                         <li class="nav-item"><a href="{% url 'contact_list' %}"><i class="bi bi-people"></i> Contacts</a></li>
                         <li class="nav-item"><a href="{% url 'lead_list' %}"><i class="bi bi-person-lines-fill"></i> Leads</a></li>
                         <li class="nav-item"><a href="{% url 'deal_list' %}"><i class="bi bi-briefcase"></i> Land Deals</a></li>
@@ -244,6 +312,95 @@ document.addEventListener('DOMContentLoaded', function() {
         body { background: white !important; color: black !important; }
     }
 </style>
+
+
+    <!-- Fixed Bottom Navigation Bar -->
+    <nav class="bottom-nav-bar" id="fixedBottomNav">
+        <a href="{% url 'transaction_list' %}" class="bottom-nav-item {% if '/transactions/' in request.path %}active{% endif %}">
+            <i class="bi bi-cash-stack"></i>
+            <span>Transactions</span>
+        </a>
+        <a href="{% url 'expense_list' %}" class="bottom-nav-item {% if '/expenses/' in request.path %}active{% endif %}">
+            <i class="bi bi-receipt"></i>
+            <span>Expenses</span>
+        </a>
+        <a href="{% url 'site_list' %}" class="bottom-nav-item {% if '/sites/' in request.path %}active{% endif %}">
+            <i class="bi bi-grid-3x3-gap-fill"></i>
+            <span>Sites</span>
+        </a>
+        <a href="{% url 'alerts' %}" class="bottom-nav-item {% if '/alerts/' in request.path %}active{% endif %}">
+            <i class="bi bi-bell-fill"></i>
+            <span>Alerts</span>
+            {% if active_alerts_count %}
+            <span class="badge rounded-pill bg-danger bottom-nav-badge">{{ active_alerts_count }}</span>
+            {% endif %}
+        </a>
+        <a href="{% url 'followup_list' %}" class="bottom-nav-item {% if '/followups/' in request.path %}active{% endif %}">
+            <i class="bi bi-calendar-check"></i>
+            <span>Follow-ups</span>
+        </a>
+    </nav>
+
+    <script>
+    // Universal Native PDF Share & Download Handler
+    async function shareReportPdf(pdfUrl, reportName) {
+        const fileName = reportName.endsWith('.pdf') ? reportName : reportName + '.pdf';
+        const titleName = reportName.replace(/_/g, ' ');
+
+        let btn = null;
+        let origHtml = '';
+        if (window.event && window.event.currentTarget) {
+            btn = window.event.currentTarget;
+            origHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Generating...';
+            btn.disabled = true;
+        }
+
+        try {
+            const response = await fetch(pdfUrl);
+            if (!response.ok) throw new Error('PDF generation request failed.');
+            const blob = await response.blob();
+            const file = new File([blob], fileName, { type: 'application/pdf' });
+
+            if (btn) {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: titleName,
+                    text: `Please find attached the ${titleName}.`
+                });
+            } else if (navigator.share) {
+                await navigator.share({
+                    title: titleName,
+                    url: window.location.origin + pdfUrl
+                });
+            } else {
+                // Fallback: download file directly
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                alert(`${titleName} downloaded successfully! You can attach and share it via WhatsApp or Email.`);
+            }
+        } catch (err) {
+            console.error('Error sharing report:', err);
+            if (btn) {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
+            // Fallback redirect
+            window.location.href = pdfUrl;
+        }
+    }
+    </script>
 
 </body>
 </html>
