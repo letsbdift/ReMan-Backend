@@ -49,8 +49,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-import dj_database_url
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -60,11 +58,15 @@ DATABASES = {
 
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
-    DATABASES['default'] = dj_database_url.config(
-        default=database_url,
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    try:
+        import dj_database_url
+        DATABASES['default'] = dj_database_url.config(
+            default=database_url,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    except ImportError:
+        pass
 
 
 AUTH_PASSWORD_VALIDATORS = [
