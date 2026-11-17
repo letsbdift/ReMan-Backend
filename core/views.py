@@ -34,7 +34,7 @@ def dashboard(request):
         sold_units=Count('sites', filter=Q(sites__status='Sold'))
     ).all()
     
-    recent_transactions = Transaction.objects.all().order_by('-transaction_date', '-date', '-id')
+    recent_transactions = Transaction.objects.all().order_by('-date', '-transaction_date', '-id')
     total_received_qs = Transaction.objects.filter(transaction_type='Received')
     total_paid_qs = Transaction.objects.filter(transaction_type='Paid')
     
@@ -489,7 +489,7 @@ class TransactionList(ListView):
     context_object_name = 'transactions'
 
     def get_queryset(self):
-        qs = Transaction.objects.all().order_by('-transaction_date', '-date', '-id')
+        qs = Transaction.objects.all().order_by('-date', '-transaction_date', '-id')
         project_id = self.request.GET.get('project_id', 'all')
         transaction_type = self.request.GET.get('transaction_type', 'all')
         partner_name = self.request.GET.get('partner_name', 'all')
@@ -981,7 +981,7 @@ def export_transactions_pdf(request):
     from django.db.models import Q, Sum
     from decimal import Decimal
     
-    qs = Transaction.objects.all().order_by('-transaction_date', '-date', '-id')
+    qs = Transaction.objects.all().order_by('-date', '-transaction_date', '-id')
     project_id = request.GET.get('project_id', 'all')
     transaction_type = request.GET.get('transaction_type', 'all')
     partner_name = request.GET.get('partner_name', 'all')

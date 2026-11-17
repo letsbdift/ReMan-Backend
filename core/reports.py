@@ -231,7 +231,7 @@ def generate_transactions_pdf(transactions_qs, filter_summary="", grand_total=De
     table_data = [[Paragraph(h, styles['th']) for h in headers]]
 
     for tx in transactions_qs:
-        tx_date = tx.transaction_date or tx.date
+        tx_date = tx.date or tx.transaction_date
         d_str = tx_date.strftime("%d/%m/%Y") if tx_date else "-"
         
         type_color = "#16a34a" if tx.transaction_type == 'Received' else "#dc2626"
