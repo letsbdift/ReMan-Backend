@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .ai_copilot.views import copilot_chat_api
 
 urlpatterns = [
     path('manifest.json', views.pwa_manifest, name='manifest'),
@@ -72,6 +73,9 @@ urlpatterns = [
     path('documents/add/', views.DocumentCreate.as_view(), name='document_create'),
     path('documents/<int:pk>/edit/', views.DocumentUpdate.as_view(), name='document_update'),
     path('documents/<int:pk>/delete/', views.DocumentDelete.as_view(), name='document_delete'),
+
+    # AI Copilot Backend Chat Endpoint
+    path('api/copilot/chat/', copilot_chat_api, name='copilot_chat_api'),
 
     # Alerts Module
     path('alerts/', views.alerts_view, name='alerts'),
