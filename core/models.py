@@ -658,3 +658,68 @@ class UnearnedRevenue(models.Model):
 
     def __str__(self):
         return f"Unearned - Site {self.site.site_number} - {self.amount}"
+
+
+def sync_role_to_firestore(email, role):
+    if not email:
+        return
+    try:
+        import os, time
+        import firebase_admin
+        from firebase_admin import credentials, firestore
+        
+        sa_path = os.environ.get('FIREBASE_SA_KEY', r"C:\Users\Muskan-PC\.gemini\antigravity\scratch\sa-key.json")
+        if not os.path.exists(sa_path):
+            return
+            
+        app = None
+        try:
+            app = firebase_admin.get_app()
+        except ValueError:
+            cred = credentials.Certificate(sa_path)
+            app = firebase_admin.initialize_app(cred)
+            
+        db = firestore.client(app=app)
+        doc_id = email.strip().lower()
+        db.collection('user_roles').document(doc_id).set({
+            'email': doc_id,
+            'role': role,
+            'updatedAt': int(time.time() * 1000)
+        }, merge=True)
+    except Exception as e:
+        print(f"Error syncing role to Firestore: {e}")
+
+
+class UserProfile(models.Model):
+    ROLE_CHOICES = [
+        ('Viewer', 'Viewer'),
+        ('Editor', 'Editor'),
+    ]
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='Viewer')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username} ({self.role})"
+
+    @property
+    def is_editor(self):
+        return self.role == 'Editor' or self.user.is_superuser or self.user.is_staff
+
+
+@receiver(post_save, sender=User)
+def create_or_update_user_profile(sender, instance, created, **kwargs):
+    if created:
+        initial_role = 'Editor' if instance.is_superuser else 'Viewer'
+        UserProfile.objects.get_or_create(user=instance, defaults={'role': initial_role})
+    else:
+        if hasattr(instance, 'profile'):
+            email = instance.email or instance.username
+            sync_role_to_firestore(email, instance.profile.role)
+
+
+@receiver(post_save, sender=UserProfile)
+def on_user_profile_save(sender, instance, **kwargs):
+    email = instance.user.email or instance.user.username
+    sync_role_to_firestore(email, instance.role)
+

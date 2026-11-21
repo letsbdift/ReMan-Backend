@@ -87,4 +87,8 @@ urlpatterns = [
     path('reports/sites/pdf/', views.export_sites_pdf, name='export_sites_pdf'),
     path('reports/leads/pdf/', views.export_leads_pdf, name='export_leads_pdf'),
     path('reports/deals/pdf/', views.export_deals_pdf, name='export_deals_pdf'),
+
+    # Role Management & Dynamic Permissions
+    path('roles/', views.role_management, name='role_management'),
+    path('api/user-role/', views.user_role_api, name='user_role_api'),
 ]

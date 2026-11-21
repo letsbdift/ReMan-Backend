@@ -153,12 +153,15 @@
                         <li class="nav-item"><a href="{% url 'expense_list' %}"><i class="bi bi-receipt"></i> Expenses</a></li>
                         <li class="nav-item"><a href="{% url 'shared_expense_list' %}"><i class="bi bi-pie-chart"></i> Shared Expenses</a></li>
                         <li class="nav-item"><a href="{% url 'document_list' %}"><i class="bi bi-file-earmark-text"></i> Documents</a></li>
+                        {% if user.is_staff or user.is_superuser %}
+                        <li class="nav-item"><a href="{% url 'role_management' %}"><i class="bi bi-shield-lock"></i> User Roles</a></li>
+                        {% endif %}
                     </ul>
                     
                     {% if user.is_authenticated %}
                         <div class="px-3 mt-auto mb-3">
                             <hr class="d-none d-md-block">
-                            <small class="text-muted d-block mb-2">Signed in as <strong class="text-dark">{{ user.username }}</strong></small>
+                            <small class="text-muted d-block mb-2">Signed in as <strong class="text-dark">{{ user.username }}</strong> <span class="badge {% if user.profile.role == 'Editor' %}bg-success{% else %}bg-secondary{% endif %} ms-1">{{ user.profile.role|default:"Viewer" }}</span></small>
                             <form action="{% url 'logout' %}" method="post" class="d-inline w-100">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-sm btn-light w-100 border fw-bold text-muted py-2">Logout</button>

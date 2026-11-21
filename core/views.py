@@ -1264,3 +1264,113 @@ def alerts_view(request):
         'total_alerts_count': len(overdue_alerts) + len(today_alerts) + pending_expenses.count()
     }
     return render(request, 'core/alerts.html', context)
+
+
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.models import User
+from .models import UserProfile, sync_role_to_firestore
+
+@login_required
+def role_management(request):
+    if not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, "Access restricted. Staff or Administrator permissions required to manage user roles.")
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        user_id = request.POST.get('user_id')
+        new_role = request.POST.get('role', 'Viewer')
+        if new_role not in ['Viewer', 'Editor']:
+            new_role = 'Viewer'
+
+        target_user = get_object_or_404(User, pk=user_id)
+        profile, _ = UserProfile.objects.get_or_create(user=target_user)
+        profile.role = new_role
+        profile.save()
+
+        email = target_user.email or target_user.username
+        sync_role_to_firestore(email, new_role)
+
+        messages.success(request, f"Updated role for '{target_user.username}' ({email}) to {new_role}.")
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+            return JsonResponse({'status': 'success', 'user_id': target_user.id, 'role': new_role, 'email': email})
+        return redirect('role_management')
+
+    search_query = request.GET.get('q', '').strip()
+    users_qs = User.objects.all().order_by('username')
+    if search_query:
+        users_qs = users_qs.filter(
+            models.Q(username__icontains=search_query) |
+            models.Q(email__icontains=search_query) |
+            models.Q(first_name__icontains=search_query) |
+            models.Q(last_name__icontains=search_query)
+        )
+
+    users_with_roles = []
+    for u in users_qs:
+        profile, _ = UserProfile.objects.get_or_create(
+            user=u,
+            defaults={'role': 'Editor' if u.is_superuser else 'Viewer'}
+        )
+        users_with_roles.append({
+            'user': u,
+            'role': profile.role,
+            'is_editor': profile.is_editor,
+            'updated_at': profile.updated_at
+        })
+
+    context = {
+        'users_with_roles': users_with_roles,
+        'search_query': search_query,
+        'total_users': len(users_with_roles),
+        'editor_count': sum(1 for item in users_with_roles if item['role'] == 'Editor'),
+        'viewer_count': sum(1 for item in users_with_roles if item['role'] == 'Viewer'),
+    }
+    return render(request, 'core/role_management.html', context)
+
+
+@csrf_exempt
+def user_role_api(request):
+    """
+    REST API endpoint for Kotlin frontend / external clients to fetch assigned user role.
+    Accepts: GET or POST /api/user-role/?email=someone@reman.com
+    Returns: JSON with email, role, can_edit
+    """
+    email = request.GET.get('email') or request.POST.get('email')
+    user = None
+
+    if email:
+        clean_email = email.strip().lower()
+        user = User.objects.filter(email__iexact=clean_email).first()
+        if not user:
+            user = User.objects.filter(username__iexact=clean_email).first()
+    elif request.user.is_authenticated:
+        user = request.user
+        email = user.email or user.username
+
+    if not user:
+        return JsonResponse({
+            'status': 'success',
+            'email': email or 'anonymous',
+            'role': 'Viewer',
+            'can_edit': False,
+            'is_admin': False,
+            'message': 'No registered user record found; defaulted to Viewer.'
+        })
+
+    profile, _ = UserProfile.objects.get_or_create(
+        user=user,
+        defaults={'role': 'Editor' if user.is_superuser else 'Viewer'}
+    )
+    can_edit = profile.role == 'Editor' or user.is_superuser
+
+    return JsonResponse({
+        'status': 'success',
+        'user_id': user.id,
+        'username': user.username,
+        'email': user.email or user.username,
+        'role': profile.role,
+        'can_edit': can_edit,
+        'is_admin': user.is_superuser or user.is_staff
+    })
+

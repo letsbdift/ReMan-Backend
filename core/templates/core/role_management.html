@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block title %}User Roles & Permissions | RE Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom flex-wrap gap-2">
+    <div>
+        <h1 class="h2 mb-1 fw-bold"><i class="bi bi-shield-lock text-primary me-2"></i>User Roles & Permissions</h1>
+        <p class="text-muted small mb-0">Manage dynamic access permissions. Editors have full write access; Viewers are restricted to read-only access in Django and Android.</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left me-1"></i> Dashboard
+        </a>
+        <a href="/admin/auth/user/" class="btn btn-primary rounded-pill px-3">
+            <i class="bi bi-person-plus me-1"></i> Add / Manage Users in Admin
+        </a>
+    </div>
+</div>
+
+{% if messages %}
+<div class="mb-3">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show shadow-sm" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Summary Stat Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="card border-0 shadow-sm rounded-3 bg-white p-3">
+            <div class="d-flex align-items-center">
+                <div class="rounded-circle bg-primary-subtle text-primary p-3 me-3">
+                    <i class="bi bi-people fs-4"></i>
+                </div>
+                <div>
+                    <h6 class="text-muted small mb-1 fw-semibold text-uppercase">Total Registered Users</h6>
+                    <h3 class="mb-0 fw-bold text-dark">{{ total_users }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card border-0 shadow-sm rounded-3 bg-white p-3">
+            <div class="d-flex align-items-center">
+                <div class="rounded-circle bg-success-subtle text-success p-3 me-3">
+                    <i class="bi bi-pencil-square fs-4"></i>
+                </div>
+                <div>
+                    <h6 class="text-muted small mb-1 fw-semibold text-uppercase">Active Editors (Write Access)</h6>
+                    <h3 class="mb-0 fw-bold text-success">{{ editor_count }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card border-0 shadow-sm rounded-3 bg-white p-3">
+            <div class="d-flex align-items-center">
+                <div class="rounded-circle bg-secondary-subtle text-secondary p-3 me-3">
+                    <i class="bi bi-eye fs-4"></i>
+                </div>
+                <div>
+                    <h6 class="text-muted small mb-1 fw-semibold text-uppercase">Viewers (Read-Only)</h6>
+                    <h3 class="mb-0 fw-bold text-secondary">{{ viewer_count }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="card shadow-sm border-0 mb-4 bg-white">
+    <div class="card-body p-3">
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-12 col-md-8">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" name="q" value="{{ search_query }}" class="form-control border-start-0" placeholder="Search by username, email or full name...">
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <button type="submit" class="btn btn-dark w-100 rounded-pill">Filter</button>
+            </div>
+            {% if search_query %}
+            <div class="col-6 col-md-2">
+                <a href="{% url 'role_management' %}" class="btn btn-outline-secondary w-100 rounded-pill">Clear</a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Users & Assigned Roles Table -->
+<div class="card shadow-sm border-0 bg-white">
+    <div class="card-header bg-white py-3 border-bottom">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold text-dark">User Access Roster</h5>
+            <span class="badge bg-light text-muted border">Realtime Sync Active</span>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light text-muted small text-uppercase">
+                <tr>
+                    <th class="ps-4">User</th>
+                    <th>Email</th>
+                    <th>Account Type</th>
+                    <th>Assigned Role</th>
+                    <th>Last Role Update</th>
+                    <th class="pe-4 text-end">Change Permissions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in users_with_roles %}
+                <tr>
+                    <td class="ps-4">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-circle me-3 bg-light text-primary fw-bold rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; border: 1px solid #e2e8f0;">
+                                {{ item.user.username|make_list|first|upper }}
+                            </div>
+                            <div>
+                                <div class="fw-bold text-dark">{{ item.user.username }}</div>
+                                {% if item.user.first_name or item.user.last_name %}
+                                <div class="text-muted small">{{ item.user.first_name }} {{ item.user.last_name }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="text-dark">{{ item.user.email|default:"(No email set)" }}</span>
+                    </td>
+                    <td>
+                        {% if item.user.is_superuser %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Superuser / Admin</span>
+                        {% elif item.user.is_staff %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Staff</span>
+                        {% else %}
+                        <span class="badge bg-light text-muted border">Standard User</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.role == 'Editor' %}
+                        <span class="badge bg-success-subtle text-success px-3 py-2 border border-success-subtle rounded-pill">
+                            <i class="bi bi-pencil-fill me-1"></i> Editor (Full Access)
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary px-3 py-2 border border-secondary-subtle rounded-pill">
+                            <i class="bi bi-eye-fill me-1"></i> Viewer (Read-Only)
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small">
+                        {{ item.updated_at|date:"M d, Y H:i" }}
+                    </td>
+                    <td class="pe-4 text-end">
+                        <form method="POST" action="{% url 'role_management' %}" class="d-inline-flex gap-2 align-items-center">
+                            {% csrf_token %}
+                            <input type="hidden" name="user_id" value="{{ item.user.id }}">
+                            <select name="role" class="form-select form-select-sm" style="width: 120px;" onchange="this.form.submit()">
+                                <option value="Viewer" {% if item.role == 'Viewer' %}selected{% endif %}>Viewer</option>
+                                <option value="Editor" {% if item.role == 'Editor' %}selected{% endif %}>Editor</option>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                Save
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">
+                        <i class="bi bi-people fs-1 d-block mb-2 text-secondary"></i>
+                        No users found matching your criteria.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Information Card -->
+<div class="card shadow-sm border-0 mt-4 bg-light">
+    <div class="card-body p-3">
+        <div class="d-flex gap-3 align-items-center">
+            <i class="bi bi-info-circle-fill text-primary fs-3"></i>
+            <div class="small text-muted">
+                <strong>Realtime Synchronization Architecture:</strong> When a user's role is updated here or via Django Admin, it is instantly written to Cloud Firestore at <code>user_roles/{email}</code> and exposed via REST API at <code>/api/user-role/</code>. The Kotlin Android app observes this in real time, automatically enabling or disabling action buttons and input forms without requiring the user to reinstall.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
